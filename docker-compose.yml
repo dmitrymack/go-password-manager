@@ -1,0 +1,35 @@
+# Local environment: PostgreSQL plus the server over TLS.
+# Run `make certs` once before `make up`.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gophkeeper
+      POSTGRES_PASSWORD: gophkeeper
+      POSTGRES_DB: gophkeeper
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gophkeeper"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GRPC_ADDRESS: ":3200"
+      TLS_CERT: /certs/server.crt
+      TLS_KEY: /certs/server.key
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./certs:/certs:ro
+
+volumes:
+  pgdata:

@@ -1,0 +1,27 @@
+version: "2"
+
+linters:
+  enable:
+    - errorlint   # errors compared with == instead of errors.Is/As
+    - gosec       # security issues: weak crypto, file permissions, etc.
+    - revive      # style, incl. documentation of exported identifiers
+    - misspell
+    - unconvert
+    - bodyclose
+  settings:
+    revive:
+      rules:
+        # The specification requires documenting every exported identifier
+        # and package; these rules enforce it.
+        - name: exported
+        - name: package-comments
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters: [gosec]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
