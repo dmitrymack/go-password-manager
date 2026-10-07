@@ -1,18 +1,18 @@
 # Local environment: PostgreSQL plus the server over TLS.
-# Run `make certs` once before `make up`.
+# Before `make up`: `make certs` and `cp .env.example .env`.
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: gophkeeper
-      POSTGRES_PASSWORD: gophkeeper
-      POSTGRES_DB: gophkeeper
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gophkeeper"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,8 +22,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file: .env
+    # Values that differ inside the container; they override .env.
     environment:
       GRPC_ADDRESS: ":3200"
+      DATABASE_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       TLS_CERT: /certs/server.crt
       TLS_KEY: /certs/server.key
     ports:

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package gophkeeper;
+
+option go_package = "github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpb";
+
+// AuthService registers and authenticates users. Its methods are public:
+// they are the only ones callable without a token.
+service AuthService {
+  // Register creates a user and returns a token, so a new user is logged in at once.
+  rpc Register(Credentials) returns (AuthResponse);
+  // Login checks the credentials and returns a token.
+  rpc Login(Credentials) returns (AuthResponse);
+}
+
+message Credentials {
+  string login = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  // JWT to send in the "authorization" metadata as "Bearer <token>".
+  string token = 1;
+}

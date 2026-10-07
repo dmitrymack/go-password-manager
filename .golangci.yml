@@ -18,8 +18,9 @@ linters:
   exclusions:
     generated: lax
     rules:
+      # In tests an unchecked Close or a "risky" file path is harmless.
       - path: _test\.go
-        linters: [gosec]
+        linters: [gosec, errcheck]
 
 formatters:
   enable:

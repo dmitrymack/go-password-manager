@@ -4,3 +4,4 @@ bin
 certs
 docs
 coverage.out
+.env

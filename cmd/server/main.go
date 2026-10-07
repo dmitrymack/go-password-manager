@@ -3,14 +3,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/dmitrymack/go-password-manager/internal/buildinfo"
 	"github.com/dmitrymack/go-password-manager/internal/server/app"
+	"github.com/dmitrymack/go-password-manager/internal/server/auth"
 	"github.com/dmitrymack/go-password-manager/internal/server/config"
+	"github.com/dmitrymack/go-password-manager/internal/server/storage"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +26,12 @@ func main() {
 // run is separate from main so its defers fire before os.Exit.
 func run() int {
 	fmt.Println(buildinfo.String())
+
+	// Load .env if present. Variables already set in the environment win.
+	if err := godotenv.Load(); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fmt.Fprintln(os.Stderr, ".env:", err)
+		return 2
+	}
 
 	cfg, err := config.Parse(os.Args[1:], os.Getenv)
 	if err != nil {
@@ -38,7 +49,20 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
-	a, err := app.New(cfg, logger)
+	db, err := storage.New(ctx, cfg.DatabaseDSN)
+	if err != nil {
+		logger.Error("failed to open storage", zap.Error(err))
+		return 1
+	}
+	defer db.Close()
+
+	tokens := auth.NewTokens(cfg.JWTSecret, cfg.TokenTTL)
+	services := app.Services{
+		Auth:   auth.NewService(db, tokens),
+		Tokens: tokens,
+	}
+
+	a, err := app.New(cfg, logger, services)
 	if err != nil {
 		logger.Error("failed to start", zap.Error(err))
 		return 1

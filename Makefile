@@ -12,7 +12,7 @@ PLATFORMS  := linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
 # Generated code is excluded from the coverage figure.
 COVER_SKIP := \.pb\.go
 
-.PHONY: build server client client-all test cover lint certs up down clean
+.PHONY: build server client client-all test cover lint certs up down clean proto
 
 build: server client
 
@@ -39,8 +39,11 @@ cover:
 	grep -vE '$(COVER_SKIP)' coverage.out.tmp > coverage.out && rm coverage.out.tmp
 	go tool cover -func=coverage.out | tail -1
 
+# go run builds the pinned linter version on first use; no install needed.
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+
 lint:
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 # Development certificates: a local CA plus a server certificate it signs,
 # valid for localhost and 127.0.0.1. The client trusts certs/ca.crt.
@@ -63,3 +66,8 @@ down:
 
 clean:
 	rm -rf $(BIN) coverage.out
+
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		api/proto/gophkeeper.proto

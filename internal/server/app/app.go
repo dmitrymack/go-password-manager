@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net"
 
+	pb "github.com/dmitrymack/go-password-manager/api/proto"
 	"github.com/dmitrymack/go-password-manager/internal/server/config"
+	"github.com/dmitrymack/go-password-manager/internal/server/grpcapi"
 	"github.com/dmitrymack/go-password-manager/internal/server/interceptor"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -23,10 +25,25 @@ type App struct {
 	grpc   *grpc.Server
 }
 
-// New builds the server from cfg.
-func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
+// Services are the business-logic dependencies the server exposes.
+type Services struct {
+	Auth   grpcapi.AuthService
+	Tokens interceptor.TokenVerifier
+}
+
+// publicMethods are callable without a token.
+var publicMethods = []string{
+	"/" + pb.AuthService_ServiceDesc.ServiceName + "/",
+	"/" + healthpb.Health_ServiceDesc.ServiceName + "/",
+}
+
+// New builds the server from cfg and svc.
+func New(cfg *config.Config, logger *zap.Logger, svc Services) (*App, error) {
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(interceptor.Logging(logger)),
+		grpc.ChainUnaryInterceptor(
+			interceptor.Logging(logger),
+			interceptor.Auth(svc.Tokens, publicMethods...),
+		),
 	}
 
 	if cfg.TLSEnabled() {
@@ -45,6 +62,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 
 	srv := grpc.NewServer(opts...)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
+	pb.RegisterAuthServiceServer(srv, grpcapi.NewAuthServer(svc.Auth, logger))
 
 	return &App{cfg: cfg, logger: logger, grpc: srv}, nil
 }
