@@ -15,6 +15,7 @@ type Config struct {
 	GRPCAddress string        // -a, GRPC_ADDRESS: host:port the gRPC server listens on
 	DatabaseDSN string        // -d, DATABASE_DSN: PostgreSQL connection string (required)
 	JWTSecret   string        // -jwt-secret, JWT_SECRET: token signing secret (required)
+	MasterKey   string        // MASTER_KEY: hex master encryption key (required; env only)
 	TokenTTL    time.Duration // -token-ttl, TOKEN_TTL: token lifetime, e.g. 24h
 	TLSCertFile string        // -tls-cert, TLS_CERT: PEM certificate; empty together with TLSKeyFile disables TLS
 	TLSKeyFile  string        // -tls-key, TLS_KEY: PEM private key of TLSCertFile
@@ -49,6 +50,7 @@ func Parse(args []string, getenv func(string) string) (*Config, error) {
 		"GRPC_ADDRESS": &cfg.GRPCAddress,
 		"DATABASE_DSN": &cfg.DatabaseDSN,
 		"JWT_SECRET":   &cfg.JWTSecret,
+		"MASTER_KEY":   &cfg.MasterKey,
 		"TLS_CERT":     &cfg.TLSCertFile,
 		"TLS_KEY":      &cfg.TLSKeyFile,
 		"LOG_LEVEL":    &cfg.LogLevel,
@@ -82,6 +84,8 @@ func (c *Config) validate() error {
 		return errors.New("database DSN is required (-d or DATABASE_DSN)")
 	case len(c.JWTSecret) < 32:
 		return errors.New("JWT secret must be at least 32 characters (-jwt-secret or JWT_SECRET)")
+	case c.MasterKey == "":
+		return errors.New("master key is required (MASTER_KEY)")
 	case c.TokenTTL <= 0:
 		return errors.New("token TTL must be positive")
 	case (c.TLSCertFile == "") != (c.TLSKeyFile == ""):

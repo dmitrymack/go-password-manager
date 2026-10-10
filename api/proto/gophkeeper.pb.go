@@ -21,6 +21,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SecretType int32
+
+const (
+	SecretType_SECRET_TYPE_UNSPECIFIED SecretType = 0
+	SecretType_SECRET_TYPE_LOGIN       SecretType = 1
+	SecretType_SECRET_TYPE_CARD        SecretType = 2
+	SecretType_SECRET_TYPE_TEXT        SecretType = 3
+	SecretType_SECRET_TYPE_BINARY      SecretType = 4
+)
+
+// Enum value maps for SecretType.
+var (
+	SecretType_name = map[int32]string{
+		0: "SECRET_TYPE_UNSPECIFIED",
+		1: "SECRET_TYPE_LOGIN",
+		2: "SECRET_TYPE_CARD",
+		3: "SECRET_TYPE_TEXT",
+		4: "SECRET_TYPE_BINARY",
+	}
+	SecretType_value = map[string]int32{
+		"SECRET_TYPE_UNSPECIFIED": 0,
+		"SECRET_TYPE_LOGIN":       1,
+		"SECRET_TYPE_CARD":        2,
+		"SECRET_TYPE_TEXT":        3,
+		"SECRET_TYPE_BINARY":      4,
+	}
+)
+
+func (x SecretType) Enum() *SecretType {
+	p := new(SecretType)
+	*p = x
+	return p
+}
+
+func (x SecretType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SecretType) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_proto_gophkeeper_proto_enumTypes[0].Descriptor()
+}
+
+func (SecretType) Type() protoreflect.EnumType {
+	return &file_api_proto_gophkeeper_proto_enumTypes[0]
+}
+
+func (x SecretType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SecretType.Descriptor instead.
+func (SecretType) EnumDescriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{0}
+}
+
 type Credentials struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Login         string                 `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
@@ -118,6 +173,494 @@ func (x *AuthResponse) GetToken() string {
 	return ""
 }
 
+// SecretInfo is a secret without its data. Stored unencrypted on the server.
+type SecretInfo struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type     SecretType             `protobuf:"varint,2,opt,name=type,proto3,enum=gophkeeper.SecretType" json:"type,omitempty"`
+	Name     string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Metadata map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Incremented on every change of this secret; sent back in Update.
+	Version int64 `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
+	// The user's revision at this secret's last change.
+	Revision      int64 `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	Deleted       bool  `protobuf:"varint,7,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	UpdatedAtUnix int64 `protobuf:"varint,8,opt,name=updated_at_unix,json=updatedAtUnix,proto3" json:"updated_at_unix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretInfo) Reset() {
+	*x = SecretInfo{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretInfo) ProtoMessage() {}
+
+func (x *SecretInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretInfo.ProtoReflect.Descriptor instead.
+func (*SecretInfo) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SecretInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SecretInfo) GetType() SecretType {
+	if x != nil {
+		return x.Type
+	}
+	return SecretType_SECRET_TYPE_UNSPECIFIED
+}
+
+func (x *SecretInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SecretInfo) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *SecretInfo) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *SecretInfo) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *SecretInfo) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+func (x *SecretInfo) GetUpdatedAtUnix() int64 {
+	if x != nil {
+		return x.UpdatedAtUnix
+	}
+	return 0
+}
+
+// Secret is a secret with its data. The data format depends on the type
+// and is up to the client; the server only encrypts it.
+type Secret struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Info          *SecretInfo            `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Secret) Reset() {
+	*x = Secret{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Secret) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Secret) ProtoMessage() {}
+
+func (x *Secret) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Secret.ProtoReflect.Descriptor instead.
+func (*Secret) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Secret) GetInfo() *SecretInfo {
+	if x != nil {
+		return x.Info
+	}
+	return nil
+}
+
+func (x *Secret) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type CreateSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          SecretType             `protobuf:"varint,1,opt,name=type,proto3,enum=gophkeeper.SecretType" json:"type,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSecretRequest) Reset() {
+	*x = CreateSecretRequest{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSecretRequest) ProtoMessage() {}
+
+func (x *CreateSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSecretRequest.ProtoReflect.Descriptor instead.
+func (*CreateSecretRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateSecretRequest) GetType() SecretType {
+	if x != nil {
+		return x.Type
+	}
+	return SecretType_SECRET_TYPE_UNSPECIFIED
+}
+
+func (x *CreateSecretRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateSecretRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *CreateSecretRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+// UpdateSecretRequest replaces name, metadata and data. The type can't change.
+type UpdateSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSecretRequest) Reset() {
+	*x = UpdateSecretRequest{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSecretRequest) ProtoMessage() {}
+
+func (x *UpdateSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateSecretRequest.ProtoReflect.Descriptor instead.
+func (*UpdateSecretRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UpdateSecretRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateSecretRequest) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *UpdateSecretRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateSecretRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *UpdateSecretRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type DeleteSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSecretRequest) Reset() {
+	*x = DeleteSecretRequest{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSecretRequest) ProtoMessage() {}
+
+func (x *DeleteSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSecretRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSecretRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DeleteSecretRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetSecretRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSecretRequest) Reset() {
+	*x = GetSecretRequest{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSecretRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSecretRequest) ProtoMessage() {}
+
+func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSecretRequest.ProtoReflect.Descriptor instead.
+func (*GetSecretRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetSecretRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type SyncRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SinceRevision int64                  `protobuf:"varint,1,opt,name=since_revision,json=sinceRevision,proto3" json:"since_revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncRequest) Reset() {
+	*x = SyncRequest{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRequest) ProtoMessage() {}
+
+func (x *SyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
+func (*SyncRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SyncRequest) GetSinceRevision() int64 {
+	if x != nil {
+		return x.SinceRevision
+	}
+	return 0
+}
+
+type SyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Secrets changed after since_revision, deleted ones included.
+	Changed []*SecretInfo `protobuf:"bytes,1,rep,name=changed,proto3" json:"changed,omitempty"`
+	// The user's current revision; send it as since_revision next time.
+	Revision      int64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncResponse) Reset() {
+	*x = SyncResponse{}
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncResponse) ProtoMessage() {}
+
+func (x *SyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_gophkeeper_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
+func (*SyncResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SyncResponse) GetChanged() []*SecretInfo {
+	if x != nil {
+		return x.Changed
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 var File_api_proto_gophkeeper_proto protoreflect.FileDescriptor
 
 const file_api_proto_gophkeeper_proto_rawDesc = "" +
@@ -128,10 +671,65 @@ const file_api_proto_gophkeeper_proto_rawDesc = "" +
 	"\x05login\x18\x01 \x01(\tR\x05login\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"$\n" +
 	"\fAuthResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token2\x88\x01\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\xd3\x02\n" +
+	"\n" +
+	"SecretInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x16.gophkeeper.SecretTypeR\x04type\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12@\n" +
+	"\bmetadata\x18\x04 \x03(\v2$.gophkeeper.SecretInfo.MetadataEntryR\bmetadata\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\x03R\aversion\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x03R\brevision\x12\x18\n" +
+	"\adeleted\x18\a \x01(\bR\adeleted\x12&\n" +
+	"\x0fupdated_at_unix\x18\b \x01(\x03R\rupdatedAtUnix\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
+	"\x06Secret\x12*\n" +
+	"\x04info\x18\x01 \x01(\v2\x16.gophkeeper.SecretInfoR\x04info\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\xf1\x01\n" +
+	"\x13CreateSecretRequest\x12*\n" +
+	"\x04type\x18\x01 \x01(\x0e2\x16.gophkeeper.SecretTypeR\x04type\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12I\n" +
+	"\bmetadata\x18\x03 \x03(\v2-.gophkeeper.CreateSecretRequest.MetadataEntryR\bmetadata\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xef\x01\n" +
+	"\x13UpdateSecretRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12I\n" +
+	"\bmetadata\x18\x04 \x03(\v2-.gophkeeper.UpdateSecretRequest.MetadataEntryR\bmetadata\x12\x12\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"%\n" +
+	"\x13DeleteSecretRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\"\n" +
+	"\x10GetSecretRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"4\n" +
+	"\vSyncRequest\x12%\n" +
+	"\x0esince_revision\x18\x01 \x01(\x03R\rsinceRevision\"\\\n" +
+	"\fSyncResponse\x120\n" +
+	"\achanged\x18\x01 \x03(\v2\x16.gophkeeper.SecretInfoR\achanged\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision*\x84\x01\n" +
+	"\n" +
+	"SecretType\x12\x1b\n" +
+	"\x17SECRET_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11SECRET_TYPE_LOGIN\x10\x01\x12\x14\n" +
+	"\x10SECRET_TYPE_CARD\x10\x02\x12\x14\n" +
+	"\x10SECRET_TYPE_TEXT\x10\x03\x12\x16\n" +
+	"\x12SECRET_TYPE_BINARY\x10\x042\x88\x01\n" +
 	"\vAuthService\x12=\n" +
 	"\bRegister\x12\x17.gophkeeper.Credentials\x1a\x18.gophkeeper.AuthResponse\x12:\n" +
-	"\x05Login\x12\x17.gophkeeper.Credentials\x1a\x18.gophkeeper.AuthResponseBBZ@github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpbb\x06proto3"
+	"\x05Login\x12\x17.gophkeeper.Credentials\x1a\x18.gophkeeper.AuthResponse2\xcc\x02\n" +
+	"\rSecretService\x12A\n" +
+	"\x06Create\x12\x1f.gophkeeper.CreateSecretRequest\x1a\x16.gophkeeper.SecretInfo\x12A\n" +
+	"\x06Update\x12\x1f.gophkeeper.UpdateSecretRequest\x1a\x16.gophkeeper.SecretInfo\x12A\n" +
+	"\x06Delete\x12\x1f.gophkeeper.DeleteSecretRequest\x1a\x16.gophkeeper.SecretInfo\x127\n" +
+	"\x03Get\x12\x1c.gophkeeper.GetSecretRequest\x1a\x12.gophkeeper.Secret\x129\n" +
+	"\x04Sync\x12\x17.gophkeeper.SyncRequest\x1a\x18.gophkeeper.SyncResponseBBZ@github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpbb\x06proto3"
 
 var (
 	file_api_proto_gophkeeper_proto_rawDescOnce sync.Once
@@ -145,21 +743,51 @@ func file_api_proto_gophkeeper_proto_rawDescGZIP() []byte {
 	return file_api_proto_gophkeeper_proto_rawDescData
 }
 
-var file_api_proto_gophkeeper_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_api_proto_gophkeeper_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_api_proto_gophkeeper_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_api_proto_gophkeeper_proto_goTypes = []any{
-	(*Credentials)(nil),  // 0: gophkeeper.Credentials
-	(*AuthResponse)(nil), // 1: gophkeeper.AuthResponse
+	(SecretType)(0),             // 0: gophkeeper.SecretType
+	(*Credentials)(nil),         // 1: gophkeeper.Credentials
+	(*AuthResponse)(nil),        // 2: gophkeeper.AuthResponse
+	(*SecretInfo)(nil),          // 3: gophkeeper.SecretInfo
+	(*Secret)(nil),              // 4: gophkeeper.Secret
+	(*CreateSecretRequest)(nil), // 5: gophkeeper.CreateSecretRequest
+	(*UpdateSecretRequest)(nil), // 6: gophkeeper.UpdateSecretRequest
+	(*DeleteSecretRequest)(nil), // 7: gophkeeper.DeleteSecretRequest
+	(*GetSecretRequest)(nil),    // 8: gophkeeper.GetSecretRequest
+	(*SyncRequest)(nil),         // 9: gophkeeper.SyncRequest
+	(*SyncResponse)(nil),        // 10: gophkeeper.SyncResponse
+	nil,                         // 11: gophkeeper.SecretInfo.MetadataEntry
+	nil,                         // 12: gophkeeper.CreateSecretRequest.MetadataEntry
+	nil,                         // 13: gophkeeper.UpdateSecretRequest.MetadataEntry
 }
 var file_api_proto_gophkeeper_proto_depIdxs = []int32{
-	0, // 0: gophkeeper.AuthService.Register:input_type -> gophkeeper.Credentials
-	0, // 1: gophkeeper.AuthService.Login:input_type -> gophkeeper.Credentials
-	1, // 2: gophkeeper.AuthService.Register:output_type -> gophkeeper.AuthResponse
-	1, // 3: gophkeeper.AuthService.Login:output_type -> gophkeeper.AuthResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: gophkeeper.SecretInfo.type:type_name -> gophkeeper.SecretType
+	11, // 1: gophkeeper.SecretInfo.metadata:type_name -> gophkeeper.SecretInfo.MetadataEntry
+	3,  // 2: gophkeeper.Secret.info:type_name -> gophkeeper.SecretInfo
+	0,  // 3: gophkeeper.CreateSecretRequest.type:type_name -> gophkeeper.SecretType
+	12, // 4: gophkeeper.CreateSecretRequest.metadata:type_name -> gophkeeper.CreateSecretRequest.MetadataEntry
+	13, // 5: gophkeeper.UpdateSecretRequest.metadata:type_name -> gophkeeper.UpdateSecretRequest.MetadataEntry
+	3,  // 6: gophkeeper.SyncResponse.changed:type_name -> gophkeeper.SecretInfo
+	1,  // 7: gophkeeper.AuthService.Register:input_type -> gophkeeper.Credentials
+	1,  // 8: gophkeeper.AuthService.Login:input_type -> gophkeeper.Credentials
+	5,  // 9: gophkeeper.SecretService.Create:input_type -> gophkeeper.CreateSecretRequest
+	6,  // 10: gophkeeper.SecretService.Update:input_type -> gophkeeper.UpdateSecretRequest
+	7,  // 11: gophkeeper.SecretService.Delete:input_type -> gophkeeper.DeleteSecretRequest
+	8,  // 12: gophkeeper.SecretService.Get:input_type -> gophkeeper.GetSecretRequest
+	9,  // 13: gophkeeper.SecretService.Sync:input_type -> gophkeeper.SyncRequest
+	2,  // 14: gophkeeper.AuthService.Register:output_type -> gophkeeper.AuthResponse
+	2,  // 15: gophkeeper.AuthService.Login:output_type -> gophkeeper.AuthResponse
+	3,  // 16: gophkeeper.SecretService.Create:output_type -> gophkeeper.SecretInfo
+	3,  // 17: gophkeeper.SecretService.Update:output_type -> gophkeeper.SecretInfo
+	3,  // 18: gophkeeper.SecretService.Delete:output_type -> gophkeeper.SecretInfo
+	4,  // 19: gophkeeper.SecretService.Get:output_type -> gophkeeper.Secret
+	10, // 20: gophkeeper.SecretService.Sync:output_type -> gophkeeper.SyncResponse
+	14, // [14:21] is the sub-list for method output_type
+	7,  // [7:14] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_gophkeeper_proto_init() }
@@ -172,13 +800,14 @@ func file_api_proto_gophkeeper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_gophkeeper_proto_rawDesc), len(file_api_proto_gophkeeper_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   13,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_api_proto_gophkeeper_proto_goTypes,
 		DependencyIndexes: file_api_proto_gophkeeper_proto_depIdxs,
+		EnumInfos:         file_api_proto_gophkeeper_proto_enumTypes,
 		MessageInfos:      file_api_proto_gophkeeper_proto_msgTypes,
 	}.Build()
 	File_api_proto_gophkeeper_proto = out.File

@@ -19,7 +19,7 @@ func envMap(m map[string]string) func(string) string {
 // required are the env vars without defaults; tests that don't check
 // them start from these.
 func required() map[string]string {
-	return map[string]string{"DATABASE_DSN": "postgres://db", "JWT_SECRET": secret}
+	return map[string]string{"DATABASE_DSN": "postgres://db", "JWT_SECRET": secret, "MASTER_KEY": "mk"}
 }
 
 func TestParse(t *testing.T) {
@@ -27,6 +27,7 @@ func TestParse(t *testing.T) {
 		GRPCAddress: "localhost:3200",
 		DatabaseDSN: "postgres://db",
 		JWTSecret:   secret,
+		MasterKey:   "mk",
 		TokenTTL:    24 * time.Hour,
 		LogLevel:    "info",
 	}
@@ -47,6 +48,7 @@ func TestParse(t *testing.T) {
 			name: "flags",
 			args: []string{"-a", ":4000", "-d", "postgres://flag", "-jwt-secret", secret + "x",
 				"-token-ttl", "1h", "-tls-cert", "c.pem", "-tls-key", "k.pem", "-log-level", "debug"},
+			env: map[string]string{"MASTER_KEY": "mk"}, // env only, no flag
 			want: func(c *Config) {
 				c.GRPCAddress, c.DatabaseDSN, c.JWTSecret = ":4000", "postgres://flag", secret+"x"
 				c.TokenTTL, c.TLSCertFile, c.TLSKeyFile, c.LogLevel = time.Hour, "c.pem", "k.pem", "debug"
@@ -55,12 +57,13 @@ func TestParse(t *testing.T) {
 		{
 			name: "env overrides flags",
 			args: []string{"-a", ":4000", "-d", "postgres://flag", "-jwt-secret", secret},
-			env:  map[string]string{"GRPC_ADDRESS": ":5000", "DATABASE_DSN": "postgres://db", "TOKEN_TTL": "30m"},
+			env:  map[string]string{"GRPC_ADDRESS": ":5000", "DATABASE_DSN": "postgres://db", "MASTER_KEY": "mk", "TOKEN_TTL": "30m"},
 			want: func(c *Config) { c.GRPCAddress, c.TokenTTL = ":5000", 30*time.Minute },
 		},
-		{name: "no DSN", env: map[string]string{"JWT_SECRET": secret}, wantErr: true},
+		{name: "no DSN", env: map[string]string{"JWT_SECRET": secret, "MASTER_KEY": "mk"}, wantErr: true},
+		{name: "no master key", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret}, wantErr: true},
 		{name: "short secret", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": "short"}, wantErr: true},
-		{name: "bad TTL env", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret, "TOKEN_TTL": "soon"}, wantErr: true},
+		{name: "bad TTL env", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret, "MASTER_KEY": "mk", "TOKEN_TTL": "soon"}, wantErr: true},
 		{name: "zero TTL", args: []string{"-token-ttl", "0s"}, env: required(), wantErr: true},
 		{name: "cert without key", args: []string{"-tls-cert", "c.pem"}, env: required(), wantErr: true},
 		{name: "empty address", args: []string{"-a", ""}, env: required(), wantErr: true},

@@ -78,6 +78,7 @@ func migrateUp(pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("creating migrator: %w", err)
 	}
+	defer m.Close() //nolint:errcheck // migrations are already applied or failed
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("applying migrations: %w", err)

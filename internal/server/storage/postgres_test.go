@@ -24,7 +24,7 @@ func newTestDB(t *testing.T) *Postgres {
 	require.NoError(t, err)
 	t.Cleanup(db.Close)
 
-	_, err = db.pool.Exec(context.Background(), "TRUNCATE users CASCADE")
+	_, err = db.pool.Exec(context.Background(), "TRUNCATE users, keks CASCADE")
 	require.NoError(t, err)
 
 	return db

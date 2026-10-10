@@ -11,6 +11,7 @@ import (
 	"github.com/dmitrymack/go-password-manager/internal/server/config"
 	"github.com/dmitrymack/go-password-manager/internal/server/grpcapi"
 	"github.com/dmitrymack/go-password-manager/internal/server/interceptor"
+	"github.com/dmitrymack/go-password-manager/internal/server/secrets"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -27,9 +28,13 @@ type App struct {
 
 // Services are the business-logic dependencies the server exposes.
 type Services struct {
-	Auth   grpcapi.AuthService
-	Tokens interceptor.TokenVerifier
+	Auth    grpcapi.AuthService
+	Tokens  interceptor.TokenVerifier
+	Secrets grpcapi.SecretService
 }
+
+// maxMessageSize fits the largest secret plus protocol overhead.
+const maxMessageSize = secrets.MaxDataSize + 1<<20
 
 // publicMethods are callable without a token.
 var publicMethods = []string{
@@ -40,6 +45,7 @@ var publicMethods = []string{
 // New builds the server from cfg and svc.
 func New(cfg *config.Config, logger *zap.Logger, svc Services) (*App, error) {
 	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(maxMessageSize),
 		grpc.ChainUnaryInterceptor(
 			interceptor.Logging(logger),
 			interceptor.Auth(svc.Tokens, publicMethods...),
@@ -63,6 +69,7 @@ func New(cfg *config.Config, logger *zap.Logger, svc Services) (*App, error) {
 	srv := grpc.NewServer(opts...)
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 	pb.RegisterAuthServiceServer(srv, grpcapi.NewAuthServer(svc.Auth, logger))
+	pb.RegisterSecretServiceServer(srv, grpcapi.NewSecretServer(svc.Secrets, logger))
 
 	return &App{cfg: cfg, logger: logger, grpc: srv}, nil
 }

@@ -22,3 +22,80 @@ message AuthResponse {
   // JWT to send in the "authorization" metadata as "Bearer <token>".
   string token = 1;
 }
+
+// SecretService stores the user's secrets. Requires a token.
+//
+// Clients keep a local copy: Sync returns what changed since the client's
+// last known revision (metadata only), then Get fetches each changed secret.
+service SecretService {
+  rpc Create(CreateSecretRequest) returns (SecretInfo);
+  // Update fails with ABORTED if the secret changed since the client read it.
+  rpc Update(UpdateSecretRequest) returns (SecretInfo);
+  rpc Delete(DeleteSecretRequest) returns (SecretInfo);
+  rpc Get(GetSecretRequest) returns (Secret);
+  rpc Sync(SyncRequest) returns (SyncResponse);
+}
+
+enum SecretType {
+  SECRET_TYPE_UNSPECIFIED = 0;
+  SECRET_TYPE_LOGIN = 1;
+  SECRET_TYPE_CARD = 2;
+  SECRET_TYPE_TEXT = 3;
+  SECRET_TYPE_BINARY = 4;
+}
+
+// SecretInfo is a secret without its data. Stored unencrypted on the server.
+message SecretInfo {
+  string id = 1;
+  SecretType type = 2;
+  string name = 3;
+  map<string, string> metadata = 4;
+  // Incremented on every change of this secret; sent back in Update.
+  int64 version = 5;
+  // The user's revision at this secret's last change.
+  int64 revision = 6;
+  bool deleted = 7;
+  int64 updated_at_unix = 8;
+}
+
+// Secret is a secret with its data. The data format depends on the type
+// and is up to the client; the server only encrypts it.
+message Secret {
+  SecretInfo info = 1;
+  bytes data = 2;
+}
+
+message CreateSecretRequest {
+  SecretType type = 1;
+  string name = 2;
+  map<string, string> metadata = 3;
+  bytes data = 4;
+}
+
+// UpdateSecretRequest replaces name, metadata and data. The type can't change.
+message UpdateSecretRequest {
+  string id = 1;
+  int64 version = 2;
+  string name = 3;
+  map<string, string> metadata = 4;
+  bytes data = 5;
+}
+
+message DeleteSecretRequest {
+  string id = 1;
+}
+
+message GetSecretRequest {
+  string id = 1;
+}
+
+message SyncRequest {
+  int64 since_revision = 1;
+}
+
+message SyncResponse {
+  // Secrets changed after since_revision, deleted ones included.
+  repeated SecretInfo changed = 1;
+  // The user's current revision; send it as since_revision next time.
+  int64 revision = 2;
+}

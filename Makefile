@@ -1,3 +1,7 @@
+# Optional .env: gives `make test` the TEST_DATABASE_DSN for storage tests.
+-include .env
+export TEST_DATABASE_DSN
+
 PKG        := github.com/dmitrymack/go-password-manager
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
