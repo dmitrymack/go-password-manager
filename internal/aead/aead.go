@@ -1,6 +1,6 @@
-// Package encryption implements envelope encryption with AES-256-GCM:
-// master key → KEKs (in DB) → DEKs (one per secret) → data.
-package encryption
+// Package aead encrypts with AES-256-GCM. Used by the server's envelope
+// encryption and by the client's local cache.
+package aead
 
 import (
 	"crypto/aes"
@@ -16,8 +16,8 @@ const KeySize = 32
 // ErrDecrypt means wrong key, wrong aad or tampered data.
 var ErrDecrypt = errors.New("decryption failed")
 
-// newKey returns a random key.
-func newKey() ([]byte, error) {
+// NewKey returns a random key.
+func NewKey() ([]byte, error) {
 	key := make([]byte, KeySize)
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("generating key: %w", err)
@@ -25,9 +25,9 @@ func newKey() ([]byte, error) {
 	return key, nil
 }
 
-// seal encrypts plaintext and returns nonce + ciphertext. aad is not
-// encrypted, but open fails unless it gets the same aad.
-func seal(key, plaintext, aad []byte) ([]byte, error) {
+// Seal encrypts plaintext and returns nonce + ciphertext. aad is not
+// encrypted, but Open fails unless it gets the same aad.
+func Seal(key, plaintext, aad []byte) ([]byte, error) {
 	gcm, err := newGCM(key)
 	if err != nil {
 		return nil, err
@@ -42,8 +42,8 @@ func seal(key, plaintext, aad []byte) ([]byte, error) {
 	return gcm.Seal(nonce, nonce, plaintext, aad), nil
 }
 
-// open reverses seal.
-func open(key, sealed, aad []byte) ([]byte, error) {
+// Open reverses Seal.
+func Open(key, sealed, aad []byte) ([]byte, error) {
 	gcm, err := newGCM(key)
 	if err != nil {
 		return nil, err

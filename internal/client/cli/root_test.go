@@ -8,16 +8,23 @@ import (
 
 	"github.com/dmitrymack/go-password-manager/internal/buildinfo"
 	"github.com/dmitrymack/go-password-manager/internal/client/api"
+	"github.com/dmitrymack/go-password-manager/internal/client/secret"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// fakeAPI is an AuthAPI that accepts only the password "passw0rd".
+// fakeAPI accepts only the password "passw0rd" and serves secrets.
 type fakeAPI struct {
 	connectedTo api.Options
+	secrets     []secret.Secret // what the server has; Sync returns all of it
+	revision    int64
+	offline     bool // every call fails with ErrUnavailable
 }
 
 func (f *fakeAPI) Register(_ context.Context, login, _ string) (string, error) {
+	if f.offline {
+		return "", api.ErrUnavailable
+	}
 	return "reg-" + login, nil
 }
 
@@ -26,6 +33,26 @@ func (f *fakeAPI) Login(_ context.Context, login, password string) (string, erro
 		return "", errors.New("invalid login or password")
 	}
 	return "login-" + login, nil
+}
+
+func (f *fakeAPI) Sync(context.Context, int64) ([]secret.Info, int64, error) {
+	if f.offline {
+		return nil, 0, api.ErrUnavailable
+	}
+	infos := make([]secret.Info, 0, len(f.secrets))
+	for _, s := range f.secrets {
+		infos = append(infos, s.Info)
+	}
+	return infos, f.revision, nil
+}
+
+func (f *fakeAPI) Get(_ context.Context, id string) (secret.Secret, error) {
+	for _, s := range f.secrets {
+		if s.ID == id {
+			return s, nil
+		}
+	}
+	return secret.Secret{}, api.ErrNotFound
 }
 
 func (f *fakeAPI) Close() error { return nil }
@@ -45,7 +72,7 @@ func newTestEnv(t *testing.T, passwords ...string) *testEnv {
 // run executes the command line args and returns its output.
 func (e *testEnv) run(args ...string) (string, error) {
 	deps := Deps{
-		Connect: func(opts api.Options) (AuthAPI, error) {
+		Connect: func(opts api.Options) (API, error) {
 			e.api.connectedTo = opts
 			return e.api, nil
 		},

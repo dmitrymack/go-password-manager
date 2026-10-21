@@ -18,9 +18,10 @@ var ErrNoSession = errors.New("not logged in: run `gophkeeper login` first")
 
 // Session is the logged-in user's state.
 type Session struct {
-	Server string `json:"server"`
-	Login  string `json:"login"`
-	Token  string `json:"token"`
+	Server   string `json:"server"`
+	Login    string `json:"login"`
+	Token    string `json:"token"`
+	CacheKey []byte `json:"cache_key"` // encrypts the local cache; base64 in JSON
 }
 
 // Save writes s to dir, readable by the current OS user only.

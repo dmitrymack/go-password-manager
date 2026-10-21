@@ -16,7 +16,7 @@ func TestSaveLoadDelete(t *testing.T) {
 	_, err := Load(dir)
 	assert.ErrorIs(t, err, ErrNoSession)
 
-	want := Session{Server: "localhost:3200", Login: "alice", Token: "tok"}
+	want := Session{Server: "localhost:3200", Login: "alice", Token: "tok", CacheKey: []byte{1, 2, 3}}
 	require.NoError(t, Save(dir, want))
 
 	got, err := Load(dir)

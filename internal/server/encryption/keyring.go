@@ -1,10 +1,20 @@
+// Package encryption implements envelope encryption:
+// master key → KEKs (in DB) → DEKs (one per secret) → data.
 package encryption
 
 import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
+	"github.com/dmitrymack/go-password-manager/internal/aead"
 )
+
+// KeySize is the key size in bytes.
+const KeySize = aead.KeySize
+
+// ErrDecrypt means wrong key, wrong aad or tampered data.
+var ErrDecrypt = aead.ErrDecrypt
 
 // ErrUnknownKEK means the keyring has no KEK of the requested version.
 var ErrUnknownKEK = errors.New("unknown KEK version")
@@ -43,11 +53,11 @@ func ParseMasterKey(s string) ([]byte, error) {
 
 // GenerateKEK creates a random KEK encrypted with masterKey.
 func GenerateKEK(masterKey []byte, version int) (StoredKEK, error) {
-	kek, err := newKey()
+	kek, err := aead.NewKey()
 	if err != nil {
 		return StoredKEK{}, err
 	}
-	wrapped, err := seal(masterKey, kek, nil)
+	wrapped, err := aead.Seal(masterKey, kek, nil)
 	if err != nil {
 		return StoredKEK{}, err
 	}
@@ -62,7 +72,7 @@ func NewKeyring(masterKey []byte, stored []StoredKEK) (*Keyring, error) {
 
 	k := &Keyring{keks: make(map[int][]byte, len(stored))}
 	for _, s := range stored {
-		kek, err := open(masterKey, s.Wrapped, nil)
+		kek, err := aead.Open(masterKey, s.Wrapped, nil)
 		if err != nil {
 			return nil, fmt.Errorf("decrypting KEK v%d (wrong master key?): %w", s.Version, err)
 		}
@@ -79,17 +89,17 @@ func (k *Keyring) ActiveVersion() int {
 
 // Encrypt encrypts with a fresh DEK; aad binds the result to its owner.
 func (k *Keyring) Encrypt(plaintext, aad []byte) (Sealed, error) {
-	dek, err := newKey()
+	dek, err := aead.NewKey()
 	if err != nil {
 		return Sealed{}, err
 	}
 
-	ciphertext, err := seal(dek, plaintext, aad)
+	ciphertext, err := aead.Seal(dek, plaintext, aad)
 	if err != nil {
 		return Sealed{}, err
 	}
 
-	wrappedDEK, err := seal(k.keks[k.active], dek, nil)
+	wrappedDEK, err := aead.Seal(k.keks[k.active], dek, nil)
 	if err != nil {
 		return Sealed{}, err
 	}
@@ -103,7 +113,7 @@ func (k *Keyring) Decrypt(s Sealed, aad []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return open(dek, s.Ciphertext, aad)
+	return aead.Open(dek, s.Ciphertext, aad)
 }
 
 // Rewrap re-encrypts only the DEK with the active KEK (for rotation).
@@ -113,7 +123,7 @@ func (k *Keyring) Rewrap(s Sealed) (Sealed, error) {
 		return Sealed{}, err
 	}
 
-	wrappedDEK, err := seal(k.keks[k.active], dek, nil)
+	wrappedDEK, err := aead.Seal(k.keks[k.active], dek, nil)
 	if err != nil {
 		return Sealed{}, err
 	}
@@ -127,5 +137,5 @@ func (k *Keyring) unwrapDEK(s Sealed) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %d", ErrUnknownKEK, s.KEKVersion)
 	}
-	return open(kek, s.WrappedDEK, nil)
+	return aead.Open(kek, s.WrappedDEK, nil)
 }

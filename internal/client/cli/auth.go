@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dmitrymack/go-password-manager/internal/aead"
 	"github.com/dmitrymack/go-password-manager/internal/client/session"
 	"github.com/spf13/cobra"
 )
@@ -73,6 +74,9 @@ func (a *app) newLogoutCmd() *cobra.Command {
 			if err := session.Delete(a.dataDir); err != nil {
 				return err
 			}
+			if err := a.removeCache(); err != nil {
+				return err
+			}
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), "Logged out")
 			return err
 		},
@@ -101,9 +105,19 @@ func (a *app) authenticate(ctx context.Context, login, password string, register
 		return err
 	}
 
+	// A new session gets a new cache key, so the old cache is useless.
+	if err := a.removeCache(); err != nil {
+		return err
+	}
+	cacheKey, err := aead.NewKey()
+	if err != nil {
+		return err
+	}
+
 	return session.Save(a.dataDir, session.Session{
-		Server: a.conn.Address,
-		Login:  login,
-		Token:  token,
+		Server:   a.conn.Address,
+		Login:    login,
+		Token:    token,
+		CacheKey: cacheKey,
 	})
 }

@@ -9,20 +9,23 @@ import (
 
 	"github.com/dmitrymack/go-password-manager/internal/buildinfo"
 	"github.com/dmitrymack/go-password-manager/internal/client/api"
+	"github.com/dmitrymack/go-password-manager/internal/client/secret"
 	"github.com/spf13/cobra"
 )
 
-// AuthAPI is what the commands need from the server connection.
-type AuthAPI interface {
+// API is what the commands need from the server connection.
+type API interface {
 	Register(ctx context.Context, login, password string) (string, error)
 	Login(ctx context.Context, login, password string) (string, error)
+	Sync(ctx context.Context, since int64) ([]secret.Info, int64, error)
+	Get(ctx context.Context, id string) (secret.Secret, error)
 	Close() error
 }
 
 // Deps are the outside-world dependencies of the commands; tests replace
 // them with fakes.
 type Deps struct {
-	Connect      func(opts api.Options) (AuthAPI, error)
+	Connect      func(opts api.Options) (API, error)
 	ReadPassword func(prompt string) (string, error)
 }
 
@@ -30,7 +33,7 @@ type Deps struct {
 // password prompt.
 func DefaultDeps() Deps {
 	return Deps{
-		Connect: func(opts api.Options) (AuthAPI, error) {
+		Connect: func(opts api.Options) (API, error) {
 			return api.Dial(opts)
 		},
 		ReadPassword: newPasswordReader(os.Stdin, os.Stderr),
@@ -70,6 +73,9 @@ func NewRootCmd(deps Deps) *cobra.Command {
 		a.newRegisterCmd(),
 		a.newLoginCmd(),
 		a.newLogoutCmd(),
+		a.newSyncCmd(),
+		a.newListCmd(),
+		a.newGetCmd(),
 	)
 
 	return root

@@ -17,6 +17,8 @@ func TestRegister(t *testing.T) {
 
 	s, err := session.Load(env.dataDir)
 	require.NoError(t, err)
+	assert.Len(t, s.CacheKey, 32, "a fresh cache key is generated")
+	s.CacheKey = nil
 	assert.Equal(t, session.Session{Server: "localhost:3200", Login: "alice", Token: "reg-alice"}, s)
 }
 
