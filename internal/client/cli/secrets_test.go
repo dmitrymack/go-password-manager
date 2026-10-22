@@ -60,11 +60,12 @@ func TestSyncListGet(t *testing.T) {
 		"ID:        id-1\n"+
 		"Updated:   2026-10-01 12:00:00\n"+
 		"Metadata:  env=work, site=github.com\n"+
-		`Data:      {"login":"alice","password":"p"}`+"\n", out)
+		"Login:     alice\n"+
+		"Password:  p\n", out)
 
 	out, err = env.run("get", "id-2")
 	require.NoError(t, err)
-	assert.Contains(t, out, "Data:     <3 bytes of binary data>")
+	assert.Contains(t, out, "Data:     <3 bytes of binary data, use --out FILE to save>")
 
 	_, err = env.run("get", "nothing")
 	assert.EqualError(t, err, "secret not found")
@@ -80,7 +81,7 @@ func TestOfflineReadOnly(t *testing.T) {
 	out, err := env.run("get", "github")
 	require.NoError(t, err, "reads work from the cache")
 	assert.Contains(t, out, "Warning: server unavailable, showing cached data (read-only mode)")
-	assert.Contains(t, out, `"password":"p"`)
+	assert.Contains(t, out, "Password:  p")
 
 	out, err = env.run("list")
 	require.NoError(t, err)

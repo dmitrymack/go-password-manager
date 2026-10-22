@@ -26,6 +26,7 @@ var (
 	ErrUnavailable    = errors.New("server unavailable")
 	ErrSessionExpired = errors.New("session expired or invalid: run `gophkeeper login`")
 	ErrNotFound       = errors.New("secret not found")
+	ErrConflict       = errors.New("secret was changed on another device: run the command again")
 )
 
 // maxMessageSize fits the largest secret (10 MB) plus overhead.
@@ -142,6 +143,42 @@ func (c *Client) Get(ctx context.Context, id string) (secret.Secret, error) {
 	return secret.Secret{Info: fromPB(resp.GetInfo()), Data: resp.GetData()}, nil
 }
 
+// Create stores a new secret.
+func (c *Client) Create(ctx context.Context, s secret.Secret) (secret.Info, error) {
+	resp, err := c.secrets.Create(c.withToken(ctx), &pb.CreateSecretRequest{
+		Type:     pb.SecretType(s.Type), //nolint:gosec // types are 1-4
+		Name:     s.Name,
+		Metadata: s.Metadata,
+		Data:     s.Data,
+	})
+	if err != nil {
+		return secret.Info{}, convertSecretError(err)
+	}
+	return fromPB(resp), nil
+}
+
+// Update replaces a secret's name, metadata and data; s.Version must be
+// the version the change is based on.
+func (c *Client) Update(ctx context.Context, s secret.Secret) (secret.Info, error) {
+	resp, err := c.secrets.Update(c.withToken(ctx), &pb.UpdateSecretRequest{
+		Id:       s.ID,
+		Version:  s.Version,
+		Name:     s.Name,
+		Metadata: s.Metadata,
+		Data:     s.Data,
+	})
+	if err != nil {
+		return secret.Info{}, convertSecretError(err)
+	}
+	return fromPB(resp), nil
+}
+
+// Delete deletes a secret.
+func (c *Client) Delete(ctx context.Context, id string) error {
+	_, err := c.secrets.Delete(c.withToken(ctx), &pb.DeleteSecretRequest{Id: id})
+	return convertSecretError(err)
+}
+
 // withToken adds the "authorization" header to an outgoing call.
 func (c *Client) withToken(ctx context.Context) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+c.token)
@@ -163,11 +200,16 @@ func fromPB(info *pb.SecretInfo) secret.Info {
 
 // convertSecretError is convertError plus the errors specific to secret calls.
 func convertSecretError(err error) error {
+	if err == nil {
+		return nil
+	}
 	switch status.Code(err) {
 	case codes.Unauthenticated:
 		return ErrSessionExpired
 	case codes.NotFound:
 		return ErrNotFound
+	case codes.Aborted:
+		return ErrConflict
 	default:
 		return convertError(err)
 	}

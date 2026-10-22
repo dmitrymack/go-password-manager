@@ -69,6 +69,36 @@ func (fakeSecretServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.
 	return &pb.Secret{Info: testInfo, Data: []byte("data")}, nil
 }
 
+func (fakeSecretServer) Create(ctx context.Context, req *pb.CreateSecretRequest) (*pb.SecretInfo, error) {
+	if err := checkToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "name must be 1-255 characters")
+	}
+	return &pb.SecretInfo{Id: "new", Type: req.GetType(), Name: req.GetName(), Version: 1}, nil
+}
+
+func (fakeSecretServer) Update(ctx context.Context, req *pb.UpdateSecretRequest) (*pb.SecretInfo, error) {
+	if err := checkToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetVersion() != 2 {
+		return nil, status.Error(codes.Aborted, "version conflict")
+	}
+	return &pb.SecretInfo{Id: req.GetId(), Name: req.GetName(), Version: 3}, nil
+}
+
+func (fakeSecretServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*pb.SecretInfo, error) {
+	if err := checkToken(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetId() != "id1" {
+		return nil, status.Error(codes.NotFound, "secret not found")
+	}
+	return &pb.SecretInfo{Id: "id1", Deleted: true}, nil
+}
+
 // startServer runs fakeAuthServer on a free port and returns its address.
 func startServer(t *testing.T) string {
 	t.Helper()
@@ -166,4 +196,29 @@ func TestClientSecrets(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSessionExpired)
 	_, err = bad.Get(ctx, "id1")
 	assert.ErrorIs(t, err, ErrSessionExpired)
+}
+
+func TestClientWrites(t *testing.T) {
+	c, err := Dial(Options{Address: startServer(t), Plaintext: true, Token: "good"})
+	require.NoError(t, err)
+	defer c.Close()
+	ctx := context.Background()
+
+	info, err := c.Create(ctx, secret.Secret{Info: secret.Info{Type: secret.TypeText, Name: "note"}, Data: []byte("x")})
+	require.NoError(t, err)
+	assert.Equal(t, "new", info.ID)
+	assert.Equal(t, secret.TypeText, info.Type)
+
+	_, err = c.Create(ctx, secret.Secret{})
+	assert.EqualError(t, err, "name must be 1-255 characters")
+
+	info, err = c.Update(ctx, secret.Secret{Info: secret.Info{ID: "id1", Name: "renamed", Version: 2}})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), info.Version)
+
+	_, err = c.Update(ctx, secret.Secret{Info: secret.Info{ID: "id1", Version: 1}})
+	assert.ErrorIs(t, err, ErrConflict)
+
+	assert.NoError(t, c.Delete(ctx, "id1"))
+	assert.ErrorIs(t, c.Delete(ctx, "other"), ErrNotFound)
 }

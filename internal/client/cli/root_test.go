@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/dmitrymack/go-password-manager/internal/buildinfo"
@@ -48,11 +49,49 @@ func (f *fakeAPI) Sync(context.Context, int64) ([]secret.Info, int64, error) {
 
 func (f *fakeAPI) Get(_ context.Context, id string) (secret.Secret, error) {
 	for _, s := range f.secrets {
-		if s.ID == id {
+		if s.ID == id && !s.Deleted {
 			return s, nil
 		}
 	}
 	return secret.Secret{}, api.ErrNotFound
+}
+
+func (f *fakeAPI) Create(_ context.Context, s secret.Secret) (secret.Info, error) {
+	if f.offline {
+		return secret.Info{}, api.ErrUnavailable
+	}
+	f.revision++
+	s.ID = fmt.Sprintf("id-%d", len(f.secrets)+1)
+	s.Version, s.Revision, s.UpdatedAt = 1, f.revision, updated
+	f.secrets = append(f.secrets, s)
+	return s.Info, nil
+}
+
+func (f *fakeAPI) Update(_ context.Context, s secret.Secret) (secret.Info, error) {
+	for i, old := range f.secrets {
+		if old.ID != s.ID || old.Deleted {
+			continue
+		}
+		if old.Version != s.Version {
+			return secret.Info{}, api.ErrConflict
+		}
+		f.revision++
+		s.Version, s.Revision, s.UpdatedAt = old.Version+1, f.revision, updated
+		f.secrets[i] = s
+		return s.Info, nil
+	}
+	return secret.Info{}, api.ErrNotFound
+}
+
+func (f *fakeAPI) Delete(_ context.Context, id string) error {
+	for i, s := range f.secrets {
+		if s.ID == id && !s.Deleted {
+			f.revision++
+			f.secrets[i].Deleted, f.secrets[i].Data, f.secrets[i].Revision = true, nil, f.revision
+			return nil
+		}
+	}
+	return api.ErrNotFound
 }
 
 func (f *fakeAPI) Close() error { return nil }

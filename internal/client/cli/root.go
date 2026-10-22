@@ -19,6 +19,9 @@ type API interface {
 	Login(ctx context.Context, login, password string) (string, error)
 	Sync(ctx context.Context, since int64) ([]secret.Info, int64, error)
 	Get(ctx context.Context, id string) (secret.Secret, error)
+	Create(ctx context.Context, s secret.Secret) (secret.Info, error)
+	Update(ctx context.Context, s secret.Secret) (secret.Info, error)
+	Delete(ctx context.Context, id string) error
 	Close() error
 }
 
@@ -76,6 +79,9 @@ func NewRootCmd(deps Deps) *cobra.Command {
 		a.newSyncCmd(),
 		a.newListCmd(),
 		a.newGetCmd(),
+		a.newAddCmd(),
+		a.newEditCmd(),
+		a.newDeleteCmd(),
 	)
 
 	return root

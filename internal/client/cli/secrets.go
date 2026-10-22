@@ -15,6 +15,7 @@ import (
 
 	"github.com/dmitrymack/go-password-manager/internal/client/api"
 	"github.com/dmitrymack/go-password-manager/internal/client/cache"
+	"github.com/dmitrymack/go-password-manager/internal/client/payload"
 	"github.com/dmitrymack/go-password-manager/internal/client/secret"
 	"github.com/dmitrymack/go-password-manager/internal/client/session"
 	"github.com/dmitrymack/go-password-manager/internal/client/syncer"
@@ -74,7 +75,8 @@ func (a *app) newListCmd() *cobra.Command {
 }
 
 func (a *app) newGetCmd() *cobra.Command {
-	return &cobra.Command{
+	var out string
+	cmd := &cobra.Command{
 		Use:   "get <name or id>",
 		Short: "Show a secret (works offline from the local cache)",
 		Args:  cobra.ExactArgs(1),
@@ -93,9 +95,19 @@ func (a *app) newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if out != "" {
+				if err := os.WriteFile(out, s.Data, 0o600); err != nil {
+					return err
+				}
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Saved %d bytes to %s\n", len(s.Data), out)
+				return err
+			}
 			return printSecret(cmd.OutOrStdout(), s)
 		},
 	}
+	cmd.Flags().StringVar(&out, "out", "", "save the data to a file instead of printing")
+	return cmd
 }
 
 // openCache loads the session and opens its local cache.
@@ -113,18 +125,29 @@ func (a *app) openCache() (session.Session, *cache.Cache, error) {
 
 // sync downloads changes from the server into the cache.
 func (a *app) sync(ctx context.Context, sess session.Session, c *cache.Cache) (syncer.Result, error) {
+	var res syncer.Result
+	err := a.withServer(ctx, sess, func(ctx context.Context, client API) error {
+		var err error
+		res, err = syncer.Run(ctx, client, c)
+		return err
+	})
+	return res, err
+}
+
+// withServer connects with the session's token and calls fn.
+func (a *app) withServer(ctx context.Context, sess session.Session, fn func(ctx context.Context, client API) error) error {
 	opts := a.conn
 	opts.Token = sess.Token
 	client, err := a.deps.Connect(opts)
 	if err != nil {
-		return syncer.Result{}, err
+		return err
 	}
 	defer client.Close() //nolint:errcheck // nothing useful to do if closing fails
 
 	ctx, cancel := context.WithTimeout(ctx, syncTimeout)
 	defer cancel()
 
-	return syncer.Run(ctx, client, c)
+	return fn(ctx, client)
 }
 
 // syncOrWarn syncs, but if the server is unreachable only prints a
@@ -173,10 +196,12 @@ func printSecret(w io.Writer, s secret.Secret) error {
 	if len(s.Metadata) > 0 {
 		_, _ = fmt.Fprintf(tw, "Metadata:\t%s\n", formatMetadata(s.Metadata))
 	}
-	if s.Type == secret.TypeBinary {
-		_, _ = fmt.Fprintf(tw, "Data:\t<%d bytes of binary data>\n", len(s.Data))
-	} else {
-		_, _ = fmt.Fprintf(tw, "Data:\t%s\n", s.Data)
+	fields, err := payload.Fields(s.Type, s.Data)
+	if err != nil {
+		return err
+	}
+	for _, f := range fields {
+		_, _ = fmt.Fprintf(tw, "%s:\t%s\n", f.Label, f.Value)
 	}
 	return tw.Flush()
 }
