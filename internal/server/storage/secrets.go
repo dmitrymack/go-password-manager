@@ -55,6 +55,44 @@ func (p *Postgres) AddKEK(ctx context.Context, k encryption.StoredKEK) error {
 	return nil
 }
 
+// DEKsBelow returns up to limit DEKs wrapped with a KEK older than version.
+// Deleted secrets have no DEK (kek_version is NULL), so they don't match.
+func (p *Postgres) DEKsBelow(ctx context.Context, version, limit int) ([]encryption.WrappedDEK, error) {
+	rows, err := p.pool.Query(ctx, `
+		SELECT id::text, wrapped_dek, kek_version
+		FROM secrets
+		WHERE kek_version < $1
+		LIMIT $2`,
+		version, limit)
+	if err != nil {
+		return nil, fmt.Errorf("selecting DEKs: %w", err)
+	}
+	defer rows.Close()
+
+	var deks []encryption.WrappedDEK
+	for rows.Next() {
+		var d encryption.WrappedDEK
+		if err := rows.Scan(&d.SecretID, &d.Wrapped, &d.KEKVersion); err != nil {
+			return nil, fmt.Errorf("scanning DEK: %w", err)
+		}
+		deks = append(deks, d)
+	}
+	return deks, rows.Err()
+}
+
+// ReplaceDEK stores a rewrapped DEK. Version and revision stay: for clients
+// nothing changed. If the secret was changed meanwhile, it's left alone.
+func (p *Postgres) ReplaceDEK(ctx context.Context, old encryption.WrappedDEK, wrapped []byte, kekVersion int) error {
+	_, err := p.pool.Exec(ctx, `
+		UPDATE secrets SET wrapped_dek = $1, kek_version = $2
+		WHERE id = $3 AND wrapped_dek = $4`,
+		wrapped, kekVersion, old.SecretID, old.Wrapped)
+	if err != nil {
+		return fmt.Errorf("updating DEK: %w", err)
+	}
+	return nil
+}
+
 // CreateSecret stores a new secret; version, revision and time come from the DB.
 func (p *Postgres) CreateSecret(ctx context.Context, s Secret) (Secret, error) {
 	if s.Metadata == nil {

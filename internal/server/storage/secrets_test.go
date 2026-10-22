@@ -118,3 +118,42 @@ func TestSecretsLifecycle(t *testing.T) {
 	_, _, err = db.SecretsChangedSince(ctx, uuid.NewString(), 0)
 	assert.ErrorIs(t, err, ErrNotFound)
 }
+
+func TestRewrapDEKs(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	require.NoError(t, db.AddKEK(ctx, encryption.StoredKEK{Version: 1, Wrapped: []byte("k1")}))
+	require.NoError(t, db.AddKEK(ctx, encryption.StoredKEK{Version: 2, Wrapped: []byte("k2")}))
+	alice, err := db.CreateUser(ctx, "alice", "hash")
+	require.NoError(t, err)
+
+	live, err := db.CreateSecret(ctx, newSecret(alice, "live"))
+	require.NoError(t, err)
+	gone, err := db.CreateSecret(ctx, newSecret(alice, "gone"))
+	require.NoError(t, err)
+	_, err = db.DeleteSecret(ctx, alice, gone.ID)
+	require.NoError(t, err)
+
+	// Only the live secret has a DEK on KEK v1.
+	deks, err := db.DEKsBelow(ctx, 2, 10)
+	require.NoError(t, err)
+	require.Equal(t, []encryption.WrappedDEK{{SecretID: live.ID, Wrapped: []byte("dek"), KEKVersion: 1}}, deks)
+
+	require.NoError(t, db.ReplaceDEK(ctx, deks[0], []byte("dek2"), 2))
+	got, err := db.GetSecret(ctx, alice, live.ID)
+	require.NoError(t, err)
+	assert.Equal(t, encryption.Sealed{Ciphertext: []byte("ct"), WrappedDEK: []byte("dek2"), KEKVersion: 2}, got.Sealed)
+	assert.Equal(t, live.Version, got.Version, "clients see no change")
+	assert.Equal(t, live.Revision, got.Revision)
+
+	// A stale DEK (the secret changed meanwhile) is not written.
+	require.NoError(t, db.ReplaceDEK(ctx, deks[0], []byte("stale"), 2))
+	got, err = db.GetSecret(ctx, alice, live.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("dek2"), got.Sealed.WrappedDEK)
+
+	deks, err = db.DEKsBelow(ctx, 2, 10)
+	require.NoError(t, err)
+	assert.Empty(t, deks)
+}

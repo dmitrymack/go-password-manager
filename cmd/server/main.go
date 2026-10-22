@@ -1,4 +1,5 @@
 // Command server runs the GophKeeper server.
+// "server rotate-kek" instead adds a new KEK and re-encrypts all DEKs with it.
 package main
 
 import (
@@ -35,7 +36,13 @@ func run() int {
 		return 2
 	}
 
-	cfg, err := config.Parse(os.Args[1:], os.Getenv)
+	args := os.Args[1:]
+	rotate := len(args) > 0 && args[0] == "rotate-kek"
+	if rotate {
+		args = args[1:]
+	}
+
+	cfg, err := config.Parse(args, os.Getenv)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "config:", err)
 		return 2
@@ -63,6 +70,18 @@ func run() int {
 		logger.Error("invalid master key", zap.Error(err))
 		return 1
 	}
+
+	if rotate {
+		res, err := encryption.Rotate(ctx, db, masterKey)
+		if err != nil {
+			logger.Error("KEK rotation failed", zap.Error(err))
+			return 1
+		}
+		logger.Info("KEK rotated; restart the server to use it",
+			zap.Int("kek_version", res.Version), zap.Int("rewrapped_deks", res.Rewrapped))
+		return 0
+	}
+
 	keys, err := encryption.LoadKeyring(ctx, db, masterKey)
 	if err != nil {
 		logger.Error("failed to load encryption keys", zap.Error(err))
