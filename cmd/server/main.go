@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -43,6 +44,9 @@ func run() int {
 	}
 
 	cfg, err := config.Parse(args, os.Getenv)
+	if errors.Is(err, flag.ErrHelp) {
+		return 0
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "config:", err)
 		return 2

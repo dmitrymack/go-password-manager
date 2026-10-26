@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"strings"
 	"testing"
 	"time"
@@ -89,4 +90,9 @@ func TestParse(t *testing.T) {
 func TestTLSEnabled(t *testing.T) {
 	assert.False(t, (&Config{}).TLSEnabled())
 	assert.True(t, (&Config{TLSCertFile: "c", TLSKeyFile: "k"}).TLSEnabled())
+}
+
+func TestParseHelp(t *testing.T) {
+	_, err := Parse([]string{"-h"}, func(string) string { return "" })
+	assert.ErrorIs(t, err, flag.ErrHelp)
 }

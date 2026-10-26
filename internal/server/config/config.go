@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"time"
 )
 
@@ -42,7 +43,12 @@ func Parse(args []string, getenv func(string) string) (*Config, error) {
 	fs.StringVar(&cfg.TLSKeyFile, "tls-key", "", "TLS private key file (PEM)")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
 
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(args); errors.Is(err, flag.ErrHelp) {
+		fs.SetOutput(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: gophkeeper-server [rotate-kek] [flags]\nEnv vars override flags; MASTER_KEY is env only.")
+		fs.PrintDefaults()
+		return nil, err
+	} else if err != nil {
 		return nil, fmt.Errorf("parsing flags: %w", err)
 	}
 
