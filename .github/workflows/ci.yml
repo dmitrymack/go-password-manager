@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.14.0
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gophkeeper_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_DSN: postgres://postgres:postgres@localhost:5432/gophkeeper_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test with coverage
+        run: make cover
+
+  statictest:
+    runs-on: ubuntu-latest
+    container: golang:1.26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download statictest binary
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: Yandex-Practicum/go-autotests
+          latest: true
+          fileName: statictest
+          out-file-path: .tools
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run statictest
+        run: |
+          chmod +x .tools/statictest
+          go vet -vettool=$(pwd)/.tools/statictest ./...
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cross-compile the client
+        run: make client-all
