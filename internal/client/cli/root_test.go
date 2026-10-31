@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/dmitrymack/go-password-manager/internal/buildinfo"
 	"github.com/dmitrymack/go-password-manager/internal/client/api"
 	"github.com/dmitrymack/go-password-manager/internal/client/secret"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,8 +60,10 @@ func (f *fakeAPI) Create(_ context.Context, s secret.Secret) (secret.Info, error
 	if f.offline {
 		return secret.Info{}, api.ErrUnavailable
 	}
+	if uuid.Validate(s.ID) != nil {
+		return secret.Info{}, errors.New("secret ID must be a UUID")
+	}
 	f.revision++
-	s.ID = fmt.Sprintf("id-%d", len(f.secrets)+1)
 	s.Version, s.Revision, s.UpdatedAt = 1, f.revision, updated
 	f.secrets = append(f.secrets, s)
 	return s.Info, nil

@@ -38,7 +38,7 @@ func (s *AuthServer) Register(ctx context.Context, req *pb.Credentials) (*pb.Aut
 	if err != nil {
 		return nil, s.authError(err)
 	}
-	return &pb.AuthResponse{Token: token}, nil
+	return pb.AuthResponse_builder{Token: token}.Build(), nil
 }
 
 // Login authenticates a user and returns their token.
@@ -47,7 +47,7 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.Credentials) (*pb.AuthRe
 	if err != nil {
 		return nil, s.authError(err)
 	}
-	return &pb.AuthResponse{Token: token}, nil
+	return pb.AuthResponse_builder{Token: token}.Build(), nil
 }
 
 // authError maps an auth service error to a gRPC status. Unknown errors

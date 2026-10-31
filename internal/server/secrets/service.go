@@ -29,6 +29,8 @@ const (
 // Errors returned by Service; their text is shown to the user.
 var (
 	ErrBadType         = errors.New("unknown secret type")
+	ErrBadID           = errors.New("secret ID must be a UUID")
+	ErrAlreadyExists   = errors.New("secret already exists")
 	ErrBadName         = errors.New("name must be 1-255 characters")
 	ErrDataTooLarge    = errors.New("data is larger than 10 MB")
 	ErrTooMuchMetadata = errors.New("at most 50 metadata entries")
@@ -64,8 +66,12 @@ func NewService(store Store, keys *encryption.Keyring) *Service {
 	return &Service{store: store, keys: keys}
 }
 
-// Create encrypts and stores a new secret.
-func (s *Service) Create(ctx context.Context, userID string, in Input) (storage.Secret, error) {
+// Create encrypts and stores a new secret. The client picks the id, so a
+// repeated request gets ErrAlreadyExists instead of making a duplicate.
+func (s *Service) Create(ctx context.Context, userID, id string, in Input) (storage.Secret, error) {
+	if uuid.Validate(id) != nil {
+		return storage.Secret{}, ErrBadID
+	}
 	if in.Type < TypeLogin || in.Type > TypeBinary {
 		return storage.Secret{}, ErrBadType
 	}
@@ -73,13 +79,12 @@ func (s *Service) Create(ctx context.Context, userID string, in Input) (storage.
 		return storage.Secret{}, err
 	}
 
-	id := uuid.NewString()
 	sealed, err := s.keys.Encrypt(in.Data, aad(userID, id))
 	if err != nil {
 		return storage.Secret{}, err
 	}
 
-	return s.store.CreateSecret(ctx, storage.Secret{
+	created, err := s.store.CreateSecret(ctx, storage.Secret{
 		ID:       id,
 		UserID:   userID,
 		Type:     in.Type,
@@ -87,6 +92,7 @@ func (s *Service) Create(ctx context.Context, userID string, in Input) (storage.
 		Metadata: in.Metadata,
 		Sealed:   sealed,
 	})
+	return created, storeError(err)
 }
 
 // Update replaces a secret's content if it's still at version. in.Type is ignored.
@@ -171,6 +177,8 @@ func storeError(err error) error {
 		return ErrNotFound
 	case errors.Is(err, storage.ErrVersionConflict):
 		return ErrVersionConflict
+	case errors.Is(err, storage.ErrAlreadyExists):
+		return ErrAlreadyExists
 	default:
 		return err
 	}

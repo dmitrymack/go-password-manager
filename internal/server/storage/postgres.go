@@ -10,9 +10,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	migratepgx "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 )
@@ -21,6 +19,8 @@ import (
 var (
 	ErrNotFound   = errors.New("not found")
 	ErrLoginTaken = errors.New("login already taken")
+	// ErrAlreadyExists means a secret with this ID is already stored.
+	ErrAlreadyExists = errors.New("already exists")
 )
 
 // User is a registered user.
@@ -95,8 +95,7 @@ func (p *Postgres) CreateUser(ctx context.Context, login, passwordHash string) (
 		login, passwordHash,
 	).Scan(&id)
 
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+	if isUniqueViolation(err) {
 		return "", ErrLoginTaken
 	}
 	if err != nil {

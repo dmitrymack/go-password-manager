@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/dmitrymack/go-password-manager/internal/server/encryption"
@@ -156,4 +157,50 @@ func TestRewrapDEKs(t *testing.T) {
 	deks, err = db.DEKsBelow(ctx, 2, 10)
 	require.NoError(t, err)
 	assert.Empty(t, deks)
+}
+
+func TestCreateSecretTwice(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	require.NoError(t, db.AddKEK(ctx, encryption.StoredKEK{Version: 1, Wrapped: []byte("k")}))
+	alice, err := db.CreateUser(ctx, "alice", "hash")
+	require.NoError(t, err)
+
+	s := newSecret(alice, "github")
+	_, err = db.CreateSecret(ctx, s)
+	require.NoError(t, err)
+
+	// A retried request: no duplicate, and the revision isn't bumped.
+	_, err = db.CreateSecret(ctx, s)
+	assert.ErrorIs(t, err, ErrAlreadyExists)
+
+	changed, rev, err := db.SecretsChangedSince(ctx, alice, 0)
+	require.NoError(t, err)
+	assert.Len(t, changed, 1)
+	assert.Equal(t, int64(1), rev)
+}
+
+func TestDatabaseConstraints(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.CreateUser(ctx, strings.Repeat("a", 65), "hash")
+	assert.Error(t, err, "login over 64 characters")
+	_, err = db.CreateUser(ctx, "alice", strings.Repeat("h", 61))
+	assert.Error(t, err, "hash over 60 characters")
+
+	require.NoError(t, db.AddKEK(ctx, encryption.StoredKEK{Version: 1, Wrapped: []byte("k")}))
+	alice, err := db.CreateUser(ctx, "alice", "hash")
+	require.NoError(t, err)
+
+	bad := newSecret(alice, "x")
+	bad.Type = 5
+	_, err = db.CreateSecret(ctx, bad)
+	assert.Error(t, err, "unknown type")
+
+	_, err = db.CreateSecret(ctx, newSecret(alice, strings.Repeat("я", 256)))
+	assert.Error(t, err, "name over 255 characters")
+	_, err = db.CreateSecret(ctx, newSecret(alice, strings.Repeat("я", 255)))
+	assert.NoError(t, err, "the limit counts characters, not bytes")
 }

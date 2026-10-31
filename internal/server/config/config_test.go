@@ -20,7 +20,10 @@ func envMap(m map[string]string) func(string) string {
 // required are the env vars without defaults; tests that don't check
 // them start from these.
 func required() map[string]string {
-	return map[string]string{"DATABASE_DSN": "postgres://db", "JWT_SECRET": secret, "MASTER_KEY": "mk"}
+	return map[string]string{
+		"DATABASE_DSN": "postgres://db", "JWT_SECRET": secret, "MASTER_KEY": "mk",
+		"TLS_CERT": "c.pem", "TLS_KEY": "k.pem",
+	}
 }
 
 func TestParse(t *testing.T) {
@@ -29,6 +32,8 @@ func TestParse(t *testing.T) {
 		DatabaseDSN: "postgres://db",
 		JWTSecret:   secret,
 		MasterKey:   "mk",
+		TLSCertFile: "c.pem",
+		TLSKeyFile:  "k.pem",
 		TokenTTL:    24 * time.Hour,
 		LogLevel:    "info",
 	}
@@ -48,25 +53,30 @@ func TestParse(t *testing.T) {
 		{
 			name: "flags",
 			args: []string{"-a", ":4000", "-d", "postgres://flag", "-jwt-secret", secret + "x",
-				"-token-ttl", "1h", "-tls-cert", "c.pem", "-tls-key", "k.pem", "-log-level", "debug"},
+				"-token-ttl", "1h", "-tls-cert", "flag.pem", "-tls-key", "flag.key", "-log-level", "debug"},
 			env: map[string]string{"MASTER_KEY": "mk"}, // env only, no flag
 			want: func(c *Config) {
 				c.GRPCAddress, c.DatabaseDSN, c.JWTSecret = ":4000", "postgres://flag", secret+"x"
-				c.TokenTTL, c.TLSCertFile, c.TLSKeyFile, c.LogLevel = time.Hour, "c.pem", "k.pem", "debug"
+				c.TokenTTL, c.TLSCertFile, c.TLSKeyFile, c.LogLevel = time.Hour, "flag.pem", "flag.key", "debug"
 			},
 		},
 		{
-			name: "env overrides flags",
-			args: []string{"-a", ":4000", "-d", "postgres://flag", "-jwt-secret", secret},
-			env:  map[string]string{"GRPC_ADDRESS": ":5000", "DATABASE_DSN": "postgres://db", "MASTER_KEY": "mk", "TOKEN_TTL": "30m"},
-			want: func(c *Config) { c.GRPCAddress, c.TokenTTL = ":5000", 30*time.Minute },
+			name: "flags override env",
+			args: []string{"-a", ":4000", "-token-ttl", "1h"},
+			env: map[string]string{
+				"GRPC_ADDRESS": ":5000", "TOKEN_TTL": "30m", "LOG_LEVEL": "warn",
+				"DATABASE_DSN": "postgres://db", "JWT_SECRET": secret, "MASTER_KEY": "mk",
+				"TLS_CERT": "c.pem", "TLS_KEY": "k.pem",
+			},
+			want: func(c *Config) { c.GRPCAddress, c.TokenTTL, c.LogLevel = ":4000", time.Hour, "warn" },
 		},
 		{name: "no DSN", env: map[string]string{"JWT_SECRET": secret, "MASTER_KEY": "mk"}, wantErr: true},
 		{name: "no master key", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret}, wantErr: true},
 		{name: "short secret", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": "short"}, wantErr: true},
 		{name: "bad TTL env", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret, "MASTER_KEY": "mk", "TOKEN_TTL": "soon"}, wantErr: true},
 		{name: "zero TTL", args: []string{"-token-ttl", "0s"}, env: required(), wantErr: true},
-		{name: "cert without key", args: []string{"-tls-cert", "c.pem"}, env: required(), wantErr: true},
+		{name: "no TLS", env: map[string]string{"DATABASE_DSN": "x", "JWT_SECRET": secret, "MASTER_KEY": "mk"}, wantErr: true},
+		{name: "cert without key", args: []string{"-tls-key", ""}, env: required(), wantErr: true},
 		{name: "empty address", args: []string{"-a", ""}, env: required(), wantErr: true},
 		{name: "unknown flag", args: []string{"-nope"}, wantErr: true},
 	}
@@ -85,11 +95,6 @@ func TestParse(t *testing.T) {
 			assert.Equal(t, want, *cfg)
 		})
 	}
-}
-
-func TestTLSEnabled(t *testing.T) {
-	assert.False(t, (&Config{}).TLSEnabled())
-	assert.True(t, (&Config{TLSCertFile: "c", TLSKeyFile: "k"}).TLSEnabled())
 }
 
 func TestParseHelp(t *testing.T) {

@@ -10,10 +10,12 @@ import (
 
 	pb "github.com/dmitrymack/go-password-manager/api/proto"
 	"github.com/dmitrymack/go-password-manager/internal/client/secret"
+	"github.com/dmitrymack/go-password-manager/internal/testcerts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -24,14 +26,14 @@ type fakeAuthServer struct {
 }
 
 func (fakeAuthServer) Register(_ context.Context, req *pb.Credentials) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "reg-" + req.GetLogin()}, nil
+	return pb.AuthResponse_builder{Token: "reg-" + req.GetLogin()}.Build(), nil
 }
 
 func (fakeAuthServer) Login(_ context.Context, req *pb.Credentials) (*pb.AuthResponse, error) {
 	if req.GetPassword() != "right" {
 		return nil, status.Error(codes.Unauthenticated, "invalid login or password")
 	}
-	return &pb.AuthResponse{Token: "login-" + req.GetLogin()}, nil
+	return pb.AuthResponse_builder{Token: "login-" + req.GetLogin()}.Build(), nil
 }
 
 // fakeSecretServer accepts only the token "good".
@@ -47,16 +49,16 @@ func checkToken(ctx context.Context) error {
 	return nil
 }
 
-var testInfo = &pb.SecretInfo{
+var testInfo = pb.SecretInfo_builder{
 	Id: "id1", Type: pb.SecretType_SECRET_TYPE_CARD, Name: "visa",
 	Metadata: map[string]string{"bank": "x"}, Version: 2, Revision: 3, UpdatedAtUnix: 1700000000,
-}
+}.Build()
 
 func (fakeSecretServer) Sync(ctx context.Context, req *pb.SyncRequest) (*pb.SyncResponse, error) {
 	if err := checkToken(ctx); err != nil {
 		return nil, err
 	}
-	return &pb.SyncResponse{Changed: []*pb.SecretInfo{testInfo}, Revision: req.GetSinceRevision() + 1}, nil
+	return pb.SyncResponse_builder{Changed: []*pb.SecretInfo{testInfo}, Revision: req.GetSinceRevision() + 1}.Build(), nil
 }
 
 func (fakeSecretServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.Secret, error) {
@@ -66,7 +68,7 @@ func (fakeSecretServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.
 	if req.GetId() != "id1" {
 		return nil, status.Error(codes.NotFound, "secret not found")
 	}
-	return &pb.Secret{Info: testInfo, Data: []byte("data")}, nil
+	return pb.Secret_builder{Info: testInfo, Data: []byte("data")}.Build(), nil
 }
 
 func (fakeSecretServer) Create(ctx context.Context, req *pb.CreateSecretRequest) (*pb.SecretInfo, error) {
@@ -76,7 +78,10 @@ func (fakeSecretServer) Create(ctx context.Context, req *pb.CreateSecretRequest)
 	if req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "name must be 1-255 characters")
 	}
-	return &pb.SecretInfo{Id: "new", Type: req.GetType(), Name: req.GetName(), Version: 1}, nil
+	if req.GetId() == "stored-before" {
+		return nil, status.Error(codes.AlreadyExists, "secret already exists")
+	}
+	return pb.SecretInfo_builder{Id: req.GetId(), Type: req.GetType(), Name: req.GetName(), Version: 1}.Build(), nil
 }
 
 func (fakeSecretServer) Update(ctx context.Context, req *pb.UpdateSecretRequest) (*pb.SecretInfo, error) {
@@ -86,7 +91,7 @@ func (fakeSecretServer) Update(ctx context.Context, req *pb.UpdateSecretRequest)
 	if req.GetVersion() != 2 {
 		return nil, status.Error(codes.Aborted, "version conflict")
 	}
-	return &pb.SecretInfo{Id: req.GetId(), Name: req.GetName(), Version: 3}, nil
+	return pb.SecretInfo_builder{Id: req.GetId(), Name: req.GetName(), Version: 3}.Build(), nil
 }
 
 func (fakeSecretServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*pb.SecretInfo, error) {
@@ -96,27 +101,32 @@ func (fakeSecretServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest)
 	if req.GetId() != "id1" {
 		return nil, status.Error(codes.NotFound, "secret not found")
 	}
-	return &pb.SecretInfo{Id: "id1", Deleted: true}, nil
+	return pb.SecretInfo_builder{Id: "id1", Deleted: true}.Build(), nil
 }
 
-// startServer runs fakeAuthServer on a free port and returns its address.
-func startServer(t *testing.T) string {
+// startServer runs the fake servers over TLS on a free port; it returns
+// options to dial them with.
+func startServer(t *testing.T, token string) Options {
 	t.Helper()
+
+	certs := testcerts.Generate(t)
+	creds, err := credentials.NewServerTLSFromFile(certs.Cert, certs.Key)
+	require.NoError(t, err)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.Creds(creds))
 	pb.RegisterAuthServiceServer(srv, fakeAuthServer{})
 	pb.RegisterSecretServiceServer(srv, fakeSecretServer{})
 	go srv.Serve(lis) //nolint:errcheck // returns when the test stops the server
 	t.Cleanup(srv.Stop)
 
-	return lis.Addr().String()
+	return Options{Address: lis.Addr().String(), CACertFile: certs.CA, Token: token}
 }
 
 func TestClientAuth(t *testing.T) {
-	c, err := Dial(Options{Address: startServer(t), Plaintext: true})
+	c, err := Dial(startServer(t, ""))
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -141,7 +151,7 @@ func TestClientUnavailable(t *testing.T) {
 	addr := lis.Addr().String()
 	require.NoError(t, lis.Close())
 
-	c, err := Dial(Options{Address: addr, Plaintext: true})
+	c, err := Dial(Options{Address: addr})
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -164,10 +174,10 @@ func TestDialCACert(t *testing.T) {
 }
 
 func TestClientSecrets(t *testing.T) {
-	addr := startServer(t)
+	opts := startServer(t, "good")
 	ctx := context.Background()
 
-	c, err := Dial(Options{Address: addr, Plaintext: true, Token: "good"})
+	c, err := Dial(opts)
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -188,7 +198,8 @@ func TestClientSecrets(t *testing.T) {
 	_, err = c.Get(ctx, "other")
 	assert.ErrorIs(t, err, ErrNotFound)
 
-	bad, err := Dial(Options{Address: addr, Plaintext: true, Token: "expired"})
+	opts.Token = "expired"
+	bad, err := Dial(opts)
 	require.NoError(t, err)
 	defer bad.Close()
 
@@ -199,15 +210,20 @@ func TestClientSecrets(t *testing.T) {
 }
 
 func TestClientWrites(t *testing.T) {
-	c, err := Dial(Options{Address: startServer(t), Plaintext: true, Token: "good"})
+	c, err := Dial(startServer(t, "good"))
 	require.NoError(t, err)
 	defer c.Close()
 	ctx := context.Background()
 
-	info, err := c.Create(ctx, secret.Secret{Info: secret.Info{Type: secret.TypeText, Name: "note"}, Data: []byte("x")})
+	info, err := c.Create(ctx, secret.Secret{Info: secret.Info{ID: "new", Type: secret.TypeText, Name: "note"}, Data: []byte("x")})
 	require.NoError(t, err)
 	assert.Equal(t, "new", info.ID)
 	assert.Equal(t, secret.TypeText, info.Type)
+
+	// Stored by an earlier attempt: that's success, not an error.
+	info, err = c.Create(ctx, secret.Secret{Info: secret.Info{ID: "stored-before", Name: "note"}})
+	require.NoError(t, err)
+	assert.Equal(t, "stored-before", info.ID)
 
 	_, err = c.Create(ctx, secret.Secret{})
 	assert.EqualError(t, err, "name must be 1-255 characters")

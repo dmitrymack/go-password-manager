@@ -15,6 +15,7 @@ import (
 	"github.com/dmitrymack/go-password-manager/internal/client/payload"
 	"github.com/dmitrymack/go-password-manager/internal/client/secret"
 	"github.com/dmitrymack/go-password-manager/internal/client/syncer"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -75,7 +76,7 @@ func (a *app) newAddTypeCmd(t secret.Type) *cobra.Command {
 				return err
 			}
 
-			s := secret.Secret{Info: secret.Info{Type: t, Name: args[0], Metadata: meta}, Data: data}
+			s := secret.Secret{Info: secret.Info{ID: uuid.NewString(), Type: t, Name: args[0], Metadata: meta}, Data: data}
 			return a.write(cmd, func(ctx context.Context, client API, _ *cache.Cache) (string, error) {
 				_, err := client.Create(ctx, s)
 				return "Added " + s.Name, err

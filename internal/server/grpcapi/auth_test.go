@@ -41,7 +41,7 @@ func TestAuthServer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := NewAuthServer(fakeAuth{token: "tok", err: tt.err}, zap.NewNop())
-			req := &pb.Credentials{Login: "alice", Password: "passw0rd"}
+			req := pb.Credentials_builder{Login: "alice", Password: "passw0rd"}.Build()
 
 			for _, call := range []func(context.Context, *pb.Credentials) (*pb.AuthResponse, error){
 				srv.Register, srv.Login,

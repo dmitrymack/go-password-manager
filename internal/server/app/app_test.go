@@ -8,11 +8,12 @@ import (
 
 	pb "github.com/dmitrymack/go-password-manager/api/proto"
 	"github.com/dmitrymack/go-password-manager/internal/server/config"
+	"github.com/dmitrymack/go-password-manager/internal/testcerts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -29,8 +30,16 @@ func (rejectAll) Verify(string) (string, error) { return "", assert.AnError }
 
 var testServices = Services{Auth: fakeAuth{}, Tokens: rejectAll{}}
 
+// testConfig returns a config with fresh TLS certificates.
+func testConfig(t *testing.T, address string) (*config.Config, testcerts.Files) {
+	t.Helper()
+	certs := testcerts.Generate(t)
+	return &config.Config{GRPCAddress: address, TLSCertFile: certs.Cert, TLSKeyFile: certs.Key}, certs
+}
+
 func TestServeAndShutdown(t *testing.T) {
-	a, err := New(&config.Config{GRPCAddress: "unused"}, zap.NewNop(), testServices)
+	cfg, certs := testConfig(t, "unused")
+	a, err := New(cfg, zap.NewNop(), testServices)
 	require.NoError(t, err)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -40,7 +49,9 @@ func TestServeAndShutdown(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- a.Serve(ctx, lis) }()
 
-	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	creds, err := credentials.NewClientTLSFromFile(certs.CA, "")
+	require.NoError(t, err)
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -49,7 +60,7 @@ func TestServeAndShutdown(t *testing.T) {
 	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.GetStatus())
 
 	// Auth methods are public: they work without a token.
-	authResp, err := pb.NewAuthServiceClient(conn).Register(context.Background(), &pb.Credentials{})
+	authResp, err := pb.NewAuthServiceClient(conn).Register(context.Background(), pb.Credentials_builder{}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, "tok", authResp.GetToken())
 
@@ -68,7 +79,8 @@ func TestNewTLSErrors(t *testing.T) {
 }
 
 func TestRunListenError(t *testing.T) {
-	a, err := New(&config.Config{GRPCAddress: "bad address"}, zap.NewNop(), testServices)
+	cfg, _ := testConfig(t, "bad address")
+	a, err := New(cfg, zap.NewNop(), testServices)
 	require.NoError(t, err)
 	assert.Error(t, a.Run(context.Background()))
 }

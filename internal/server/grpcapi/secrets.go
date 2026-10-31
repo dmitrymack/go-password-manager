@@ -15,7 +15,7 @@ import (
 
 // SecretService is what SecretServer needs from the secrets service.
 type SecretService interface {
-	Create(ctx context.Context, userID string, in secrets.Input) (storage.Secret, error)
+	Create(ctx context.Context, userID, id string, in secrets.Input) (storage.Secret, error)
 	Update(ctx context.Context, userID, id string, version int64, in secrets.Input) (storage.Secret, error)
 	Delete(ctx context.Context, userID, id string) (storage.Secret, error)
 	Get(ctx context.Context, userID, id string) (storage.Secret, []byte, error)
@@ -42,7 +42,7 @@ func (s *SecretServer) Create(ctx context.Context, req *pb.CreateSecretRequest) 
 		return nil, err
 	}
 
-	secret, err := s.svc.Create(ctx, userID, secrets.Input{
+	secret, err := s.svc.Create(ctx, userID, req.GetId(), secrets.Input{
 		Type:     int(req.GetType()),
 		Name:     req.GetName(),
 		Metadata: req.GetMetadata(),
@@ -97,7 +97,7 @@ func (s *SecretServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.S
 	if err != nil {
 		return nil, s.secretError(err)
 	}
-	return &pb.Secret{Info: toInfo(secret), Data: data}, nil
+	return pb.Secret_builder{Info: toInfo(secret), Data: data}.Build(), nil
 }
 
 // Sync returns secrets changed since the client's revision.
@@ -112,11 +112,11 @@ func (s *SecretServer) Sync(ctx context.Context, req *pb.SyncRequest) (*pb.SyncR
 		return nil, s.secretError(err)
 	}
 
-	resp := &pb.SyncResponse{Revision: revision}
+	infos := make([]*pb.SecretInfo, 0, len(changed))
 	for _, secret := range changed {
-		resp.Changed = append(resp.Changed, toInfo(secret))
+		infos = append(infos, toInfo(secret))
 	}
-	return resp, nil
+	return pb.SyncResponse_builder{Changed: infos, Revision: revision}.Build(), nil
 }
 
 // currentUser returns the user ID put into ctx by the auth interceptor.
@@ -130,7 +130,7 @@ func currentUser(ctx context.Context) (string, error) {
 
 // toInfo converts a stored secret to its API form, without data.
 func toInfo(s storage.Secret) *pb.SecretInfo {
-	return &pb.SecretInfo{
+	return pb.SecretInfo_builder{
 		Id:            s.ID,
 		Type:          pb.SecretType(s.Type), //nolint:gosec // types are 1-4
 		Name:          s.Name,
@@ -139,17 +139,20 @@ func toInfo(s storage.Secret) *pb.SecretInfo {
 		Revision:      s.Revision,
 		Deleted:       s.Deleted,
 		UpdatedAtUnix: s.UpdatedAt.Unix(),
-	}
+	}.Build()
 }
 
 // secretError maps a secrets service error to a gRPC status.
 func (s *SecretServer) secretError(err error) error {
 	switch {
 	case errors.Is(err, secrets.ErrBadType),
+		errors.Is(err, secrets.ErrBadID),
 		errors.Is(err, secrets.ErrBadName),
 		errors.Is(err, secrets.ErrDataTooLarge),
 		errors.Is(err, secrets.ErrTooMuchMetadata):
 		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, secrets.ErrAlreadyExists):
+		return status.Error(codes.AlreadyExists, err.Error())
 	case errors.Is(err, secrets.ErrNotFound):
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, secrets.ErrVersionConflict):

@@ -52,19 +52,14 @@ func New(cfg *config.Config, logger *zap.Logger, svc Services) (*App, error) {
 		),
 	}
 
-	if cfg.TLSEnabled() {
-		cert, err := tls.LoadX509KeyPair(cfg.TLSCertFile, cfg.TLSKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("loading TLS key pair: %w", err)
-		}
-		creds := credentials.NewTLS(&tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		})
-		opts = append(opts, grpc.Creds(creds))
-	} else {
-		logger.Warn("TLS is disabled: traffic goes in plaintext")
+	cert, err := tls.LoadX509KeyPair(cfg.TLSCertFile, cfg.TLSKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("loading TLS key pair: %w", err)
 	}
+	opts = append(opts, grpc.Creds(credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	})))
 
 	srv := grpc.NewServer(opts...)
 	healthpb.RegisterHealthServer(srv, health.NewServer())

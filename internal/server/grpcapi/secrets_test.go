@@ -21,6 +21,7 @@ import (
 type fakeSecrets struct {
 	err       error
 	gotUserID string
+	gotID     string
 	gotInput  secrets.Input
 }
 
@@ -29,8 +30,8 @@ var testSecret = storage.Secret{
 	Version: 2, Revision: 5, UpdatedAt: time.Unix(1700000000, 0),
 }
 
-func (f *fakeSecrets) Create(_ context.Context, userID string, in secrets.Input) (storage.Secret, error) {
-	f.gotUserID, f.gotInput = userID, in
+func (f *fakeSecrets) Create(_ context.Context, userID, id string, in secrets.Input) (storage.Secret, error) {
+	f.gotUserID, f.gotID, f.gotInput = userID, id, in
 	return testSecret, f.err
 }
 
@@ -54,39 +55,40 @@ func (f *fakeSecrets) Sync(_ context.Context, userID string, _ int64) ([]storage
 	return []storage.Secret{testSecret}, 5, f.err
 }
 
-var wantInfo = &pb.SecretInfo{
+var wantInfo = pb.SecretInfo_builder{
 	Id: "id1", Type: pb.SecretType_SECRET_TYPE_LOGIN, Name: "github", Metadata: map[string]string{"k": "v"},
 	Version: 2, Revision: 5, UpdatedAtUnix: 1700000000,
-}
+}.Build()
 
 func TestSecretServerCalls(t *testing.T) {
 	fake := &fakeSecrets{}
 	srv := NewSecretServer(fake, zap.NewNop())
 	ctx := interceptor.WithUserID(context.Background(), "alice")
 
-	info, err := srv.Create(ctx, &pb.CreateSecretRequest{
-		Type: pb.SecretType_SECRET_TYPE_CARD, Name: "visa", Metadata: map[string]string{"bank": "x"}, Data: []byte("d"),
-	})
+	info, err := srv.Create(ctx, pb.CreateSecretRequest_builder{
+		Id: "new-id", Type: pb.SecretType_SECRET_TYPE_CARD, Name: "visa", Metadata: map[string]string{"bank": "x"}, Data: []byte("d"),
+	}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, wantInfo, info)
 	assert.Equal(t, "alice", fake.gotUserID)
+	assert.Equal(t, "new-id", fake.gotID)
 	assert.Equal(t, secrets.Input{Type: secrets.TypeCard, Name: "visa", Metadata: map[string]string{"bank": "x"}, Data: []byte("d")}, fake.gotInput)
 
-	info, err = srv.Update(ctx, &pb.UpdateSecretRequest{Id: "id1", Version: 1, Name: "visa2"})
+	info, err = srv.Update(ctx, pb.UpdateSecretRequest_builder{Id: "id1", Version: 1, Name: "visa2"}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, wantInfo, info)
 	assert.Equal(t, "visa2", fake.gotInput.Name)
 
-	info, err = srv.Delete(ctx, &pb.DeleteSecretRequest{Id: "id1"})
+	info, err = srv.Delete(ctx, pb.DeleteSecretRequest_builder{Id: "id1"}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, wantInfo, info)
 
-	secret, err := srv.Get(ctx, &pb.GetSecretRequest{Id: "id1"})
+	secret, err := srv.Get(ctx, pb.GetSecretRequest_builder{Id: "id1"}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, wantInfo, secret.GetInfo())
 	assert.Equal(t, []byte("data"), secret.GetData())
 
-	resp, err := srv.Sync(ctx, &pb.SyncRequest{SinceRevision: 0})
+	resp, err := srv.Sync(ctx, pb.SyncRequest_builder{SinceRevision: 0}.Build())
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), resp.GetRevision())
 	assert.Equal(t, []*pb.SecretInfo{wantInfo}, resp.GetChanged())
@@ -98,6 +100,8 @@ func TestSecretServerErrors(t *testing.T) {
 		want codes.Code
 	}{
 		{secrets.ErrBadType, codes.InvalidArgument},
+		{secrets.ErrBadID, codes.InvalidArgument},
+		{secrets.ErrAlreadyExists, codes.AlreadyExists},
 		{secrets.ErrBadName, codes.InvalidArgument},
 		{secrets.ErrDataTooLarge, codes.InvalidArgument},
 		{secrets.ErrTooMuchMetadata, codes.InvalidArgument},

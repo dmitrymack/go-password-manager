@@ -66,8 +66,6 @@ func NewRootCmd(deps Deps) *cobra.Command {
 		"server address [GOPHKEEPER_SERVER]")
 	flags.StringVar(&a.conn.CACertFile, "ca-cert", os.Getenv("GOPHKEEPER_CA_CERT"),
 		"CA certificate to verify the server [GOPHKEEPER_CA_CERT]")
-	flags.BoolVar(&a.conn.Plaintext, "plaintext", false,
-		"connect without TLS (development only)")
 	flags.StringVar(&a.dataDir, "data-dir", envOr("GOPHKEEPER_DATA_DIR", defaultDataDir()),
 		"directory for the session and local data [GOPHKEEPER_DATA_DIR]")
 

@@ -19,6 +19,9 @@ type fakeStore struct {
 }
 
 func (f *fakeStore) CreateSecret(_ context.Context, s storage.Secret) (storage.Secret, error) {
+	if _, ok := f.secrets[s.ID]; ok {
+		return storage.Secret{}, storage.ErrAlreadyExists
+	}
 	s.Version = 1
 	f.secrets[s.ID] = s
 	return s, nil
@@ -77,9 +80,15 @@ func TestCreateGetUpdateDelete(t *testing.T) {
 	ctx := context.Background()
 
 	in := Input{Type: TypeLogin, Name: "github", Metadata: map[string]string{"site": "github.com"}, Data: []byte(`{"password":"p"}`)}
-	created, err := svc.Create(ctx, "alice", in)
+	id := uuid.NewString()
+	created, err := svc.Create(ctx, "alice", id, in)
 	require.NoError(t, err)
-	assert.NoError(t, uuid.Validate(created.ID))
+	assert.Equal(t, id, created.ID)
+
+	// A retried Create with the same ID doesn't make a duplicate.
+	_, err = svc.Create(ctx, "alice", id, in)
+	assert.ErrorIs(t, err, ErrAlreadyExists)
+	assert.Len(t, store.secrets, 1)
 	assert.NotContains(t, string(store.secrets[created.ID].Sealed.Ciphertext), "password", "data must be encrypted")
 
 	got, data, err := svc.Get(ctx, "alice", created.ID)
@@ -114,9 +123,9 @@ func TestDataIsBoundToOwner(t *testing.T) {
 	svc, store := newTestService(t)
 	ctx := context.Background()
 
-	a, err := svc.Create(ctx, "alice", Input{Type: TypeText, Name: "a", Data: []byte("alice's")})
+	a, err := svc.Create(ctx, "alice", uuid.NewString(), Input{Type: TypeText, Name: "a", Data: []byte("alice's")})
 	require.NoError(t, err)
-	b, err := svc.Create(ctx, "bob", Input{Type: TypeText, Name: "b", Data: []byte("bob's")})
+	b, err := svc.Create(ctx, "bob", uuid.NewString(), Input{Type: TypeText, Name: "b", Data: []byte("bob's")})
 	require.NoError(t, err)
 
 	// Someone with DB access copies Alice's encrypted data into Bob's row.
@@ -153,12 +162,12 @@ func TestValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := svc.Create(ctx, "alice", tt.in(ok))
+			_, err := svc.Create(ctx, "alice", uuid.NewString(), tt.in(ok))
 			assert.ErrorIs(t, err, tt.want)
 		})
 	}
 
-	_, err := svc.Create(ctx, "alice", Input{Type: TypeText, Name: strings.Repeat("я", maxNameLen)})
+	_, err := svc.Create(ctx, "alice", uuid.NewString(), Input{Type: TypeText, Name: strings.Repeat("я", maxNameLen)})
 	assert.NoError(t, err, "name limit counts characters, not bytes")
 }
 
@@ -166,7 +175,9 @@ func TestInvalidID(t *testing.T) {
 	svc, _ := newTestService(t)
 	ctx := context.Background()
 
-	_, err := svc.Update(ctx, "alice", "not-a-uuid", 1, Input{Name: "n"})
+	_, err := svc.Create(ctx, "alice", "not-a-uuid", Input{Type: TypeText, Name: "n"})
+	assert.ErrorIs(t, err, ErrBadID)
+	_, err = svc.Update(ctx, "alice", "not-a-uuid", 1, Input{Name: "n"})
 	assert.ErrorIs(t, err, ErrNotFound)
 	_, err = svc.Delete(ctx, "alice", "not-a-uuid")
 	assert.ErrorIs(t, err, ErrNotFound)
