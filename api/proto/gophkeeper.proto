@@ -1,8 +1,14 @@
-syntax = "proto3";
+edition = "2023";
 
 package gophkeeper;
 
+import "google/protobuf/go_features.proto";
+
 option go_package = "github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpb";
+// Opaque API: fields are hidden behind getters, setters and builders.
+option features.(pb.go).api_level = API_OPAQUE;
+// Keep proto3 semantics: no presence tracking for scalar fields.
+option features.field_presence = IMPLICIT;
 
 // AuthService registers and authenticates users. Its methods are public:
 // they are the only ones callable without a token.
@@ -65,11 +71,15 @@ message Secret {
   bytes data = 2;
 }
 
+// CreateSecretRequest carries an ID chosen by the client, so a retried
+// Create can't make a duplicate: the second one fails with ALREADY_EXISTS.
 message CreateSecretRequest {
   SecretType type = 1;
   string name = 2;
   map<string, string> metadata = 3;
   bytes data = 4;
+  // UUID of the new secret.
+  string id = 5;
 }
 
 // UpdateSecretRequest replaces name, metadata and data. The type can't change.

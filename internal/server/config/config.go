@@ -1,5 +1,5 @@
 // Package config reads the server configuration.
-// Priority: env var > flag > default.
+// Priority: flag > env var > default.
 package config
 
 import (
@@ -18,14 +18,9 @@ type Config struct {
 	JWTSecret   string        // -jwt-secret, JWT_SECRET: token signing secret (required)
 	MasterKey   string        // MASTER_KEY: hex master encryption key (required; env only)
 	TokenTTL    time.Duration // -token-ttl, TOKEN_TTL: token lifetime, e.g. 24h
-	TLSCertFile string        // -tls-cert, TLS_CERT: PEM certificate; empty together with TLSKeyFile disables TLS
-	TLSKeyFile  string        // -tls-key, TLS_KEY: PEM private key of TLSCertFile
+	TLSCertFile string        // -tls-cert, TLS_CERT: PEM certificate (required)
+	TLSKeyFile  string        // -tls-key, TLS_KEY: PEM private key of TLSCertFile (required)
 	LogLevel    string        // -log-level, LOG_LEVEL: zap level (debug, info, warn, error)
-}
-
-// TLSEnabled reports whether the server should serve over TLS.
-func (c *Config) TLSEnabled() bool {
-	return c.TLSCertFile != "" || c.TLSKeyFile != ""
 }
 
 // Parse builds a Config from args (without the program name) and getenv
@@ -45,34 +40,34 @@ func Parse(args []string, getenv func(string) string) (*Config, error) {
 
 	if err := fs.Parse(args); errors.Is(err, flag.ErrHelp) {
 		fs.SetOutput(os.Stderr)
-		fmt.Fprintln(os.Stderr, "Usage: gophkeeper-server [rotate-kek] [flags]\nEnv vars override flags; MASTER_KEY is env only.")
+		fmt.Fprintln(os.Stderr, "Usage: gophkeeper-server [rotate-kek] [flags]\nFlags override env vars; MASTER_KEY is env only.")
 		fs.PrintDefaults()
 		return nil, err
 	} else if err != nil {
 		return nil, fmt.Errorf("parsing flags: %w", err)
 	}
 
-	for env, dst := range map[string]*string{
-		"GRPC_ADDRESS": &cfg.GRPCAddress,
-		"DATABASE_DSN": &cfg.DatabaseDSN,
-		"JWT_SECRET":   &cfg.JWTSecret,
-		"MASTER_KEY":   &cfg.MasterKey,
-		"TLS_CERT":     &cfg.TLSCertFile,
-		"TLS_KEY":      &cfg.TLSKeyFile,
-		"LOG_LEVEL":    &cfg.LogLevel,
-	} {
-		if v := getenv(env); v != "" {
-			*dst = v
-		}
-	}
+	// Flags given on the command line; env vars don't override them.
+	given := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { given[f.Name] = true })
 
-	if v := getenv("TOKEN_TTL"); v != "" {
-		ttl, err := time.ParseDuration(v)
-		if err != nil {
-			return nil, fmt.Errorf("TOKEN_TTL: %w", err)
+	for env, name := range map[string]string{
+		"GRPC_ADDRESS": "a",
+		"DATABASE_DSN": "d",
+		"JWT_SECRET":   "jwt-secret",
+		"TOKEN_TTL":    "token-ttl",
+		"TLS_CERT":     "tls-cert",
+		"TLS_KEY":      "tls-key",
+		"LOG_LEVEL":    "log-level",
+	} {
+		if v := getenv(env); v != "" && !given[name] {
+			// Set parses the value like the flag would, e.g. a duration.
+			if err := fs.Set(name, v); err != nil {
+				return nil, fmt.Errorf("%s: %w", env, err)
+			}
 		}
-		cfg.TokenTTL = ttl
 	}
+	cfg.MasterKey = getenv("MASTER_KEY") // env only: keep it out of ps and shell history
 
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -94,8 +89,8 @@ func (c *Config) validate() error {
 		return errors.New("master key is required (MASTER_KEY)")
 	case c.TokenTTL <= 0:
 		return errors.New("token TTL must be positive")
-	case (c.TLSCertFile == "") != (c.TLSKeyFile == ""):
-		return errors.New("TLS certificate and key must be set together")
+	case c.TLSCertFile == "" || c.TLSKeyFile == "":
+		return errors.New("TLS certificate and key are required (-tls-cert/TLS_CERT, -tls-key/TLS_KEY)")
 	}
 	return nil
 }

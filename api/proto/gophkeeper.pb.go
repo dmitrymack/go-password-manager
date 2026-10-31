@@ -9,8 +9,8 @@ package gophkeeperpb
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	_ "google.golang.org/protobuf/types/gofeaturespb"
 	reflect "reflect"
-	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -71,17 +71,12 @@ func (x SecretType) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use SecretType.Descriptor instead.
-func (SecretType) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{0}
-}
-
 type Credentials struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Login         string                 `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Login    string                 `protobuf:"bytes,1,opt,name=login"`
+	xxx_hidden_Password string                 `protobuf:"bytes,2,opt,name=password"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Credentials) Reset() {
@@ -109,31 +104,49 @@ func (x *Credentials) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Credentials.ProtoReflect.Descriptor instead.
-func (*Credentials) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{0}
-}
-
 func (x *Credentials) GetLogin() string {
 	if x != nil {
-		return x.Login
+		return x.xxx_hidden_Login
 	}
 	return ""
 }
 
 func (x *Credentials) GetPassword() string {
 	if x != nil {
-		return x.Password
+		return x.xxx_hidden_Password
 	}
 	return ""
 }
 
+func (x *Credentials) SetLogin(v string) {
+	x.xxx_hidden_Login = v
+}
+
+func (x *Credentials) SetPassword(v string) {
+	x.xxx_hidden_Password = v
+}
+
+type Credentials_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Login    string
+	Password string
+}
+
+func (b0 Credentials_builder) Build() *Credentials {
+	m0 := &Credentials{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Login = b.Login
+	x.xxx_hidden_Password = b.Password
+	return m0
+}
+
 type AuthResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// JWT to send in the "authorization" metadata as "Bearer <token>".
-	Token         string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Token string                 `protobuf:"bytes,1,opt,name=token"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AuthResponse) Reset() {
@@ -161,33 +174,45 @@ func (x *AuthResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AuthResponse.ProtoReflect.Descriptor instead.
-func (*AuthResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{1}
-}
-
 func (x *AuthResponse) GetToken() string {
 	if x != nil {
-		return x.Token
+		return x.xxx_hidden_Token
 	}
 	return ""
 }
 
+func (x *AuthResponse) SetToken(v string) {
+	x.xxx_hidden_Token = v
+}
+
+type AuthResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// JWT to send in the "authorization" metadata as "Bearer <token>".
+	Token string
+}
+
+func (b0 AuthResponse_builder) Build() *AuthResponse {
+	m0 := &AuthResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Token = b.Token
+	return m0
+}
+
 // SecretInfo is a secret without its data. Stored unencrypted on the server.
 type SecretInfo struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type     SecretType             `protobuf:"varint,2,opt,name=type,proto3,enum=gophkeeper.SecretType" json:"type,omitempty"`
-	Name     string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Metadata map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Incremented on every change of this secret; sent back in Update.
-	Version int64 `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
-	// The user's revision at this secret's last change.
-	Revision      int64 `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
-	Deleted       bool  `protobuf:"varint,7,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	UpdatedAtUnix int64 `protobuf:"varint,8,opt,name=updated_at_unix,json=updatedAtUnix,proto3" json:"updated_at_unix,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id            string                 `protobuf:"bytes,1,opt,name=id"`
+	xxx_hidden_Type          SecretType             `protobuf:"varint,2,opt,name=type,enum=gophkeeper.SecretType"`
+	xxx_hidden_Name          string                 `protobuf:"bytes,3,opt,name=name"`
+	xxx_hidden_Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Version       int64                  `protobuf:"varint,5,opt,name=version"`
+	xxx_hidden_Revision      int64                  `protobuf:"varint,6,opt,name=revision"`
+	xxx_hidden_Deleted       bool                   `protobuf:"varint,7,opt,name=deleted"`
+	xxx_hidden_UpdatedAtUnix int64                  `protobuf:"varint,8,opt,name=updated_at_unix,json=updatedAtUnix"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SecretInfo) Reset() {
@@ -215,75 +240,132 @@ func (x *SecretInfo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SecretInfo.ProtoReflect.Descriptor instead.
-func (*SecretInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{2}
-}
-
 func (x *SecretInfo) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *SecretInfo) GetType() SecretType {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return SecretType_SECRET_TYPE_UNSPECIFIED
 }
 
 func (x *SecretInfo) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *SecretInfo) GetMetadata() map[string]string {
 	if x != nil {
-		return x.Metadata
+		return x.xxx_hidden_Metadata
 	}
 	return nil
 }
 
 func (x *SecretInfo) GetVersion() int64 {
 	if x != nil {
-		return x.Version
+		return x.xxx_hidden_Version
 	}
 	return 0
 }
 
 func (x *SecretInfo) GetRevision() int64 {
 	if x != nil {
-		return x.Revision
+		return x.xxx_hidden_Revision
 	}
 	return 0
 }
 
 func (x *SecretInfo) GetDeleted() bool {
 	if x != nil {
-		return x.Deleted
+		return x.xxx_hidden_Deleted
 	}
 	return false
 }
 
 func (x *SecretInfo) GetUpdatedAtUnix() int64 {
 	if x != nil {
-		return x.UpdatedAtUnix
+		return x.xxx_hidden_UpdatedAtUnix
 	}
 	return 0
+}
+
+func (x *SecretInfo) SetId(v string) {
+	x.xxx_hidden_Id = v
+}
+
+func (x *SecretInfo) SetType(v SecretType) {
+	x.xxx_hidden_Type = v
+}
+
+func (x *SecretInfo) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+func (x *SecretInfo) SetMetadata(v map[string]string) {
+	x.xxx_hidden_Metadata = v
+}
+
+func (x *SecretInfo) SetVersion(v int64) {
+	x.xxx_hidden_Version = v
+}
+
+func (x *SecretInfo) SetRevision(v int64) {
+	x.xxx_hidden_Revision = v
+}
+
+func (x *SecretInfo) SetDeleted(v bool) {
+	x.xxx_hidden_Deleted = v
+}
+
+func (x *SecretInfo) SetUpdatedAtUnix(v int64) {
+	x.xxx_hidden_UpdatedAtUnix = v
+}
+
+type SecretInfo_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Id       string
+	Type     SecretType
+	Name     string
+	Metadata map[string]string
+	// Incremented on every change of this secret; sent back in Update.
+	Version int64
+	// The user's revision at this secret's last change.
+	Revision      int64
+	Deleted       bool
+	UpdatedAtUnix int64
+}
+
+func (b0 SecretInfo_builder) Build() *SecretInfo {
+	m0 := &SecretInfo{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Metadata = b.Metadata
+	x.xxx_hidden_Version = b.Version
+	x.xxx_hidden_Revision = b.Revision
+	x.xxx_hidden_Deleted = b.Deleted
+	x.xxx_hidden_UpdatedAtUnix = b.UpdatedAtUnix
+	return m0
 }
 
 // Secret is a secret with its data. The data format depends on the type
 // and is up to the client; the server only encrypts it.
 type Secret struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Info          *SecretInfo            `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Info *SecretInfo            `protobuf:"bytes,1,opt,name=info"`
+	xxx_hidden_Data []byte                 `protobuf:"bytes,2,opt,name=data"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Secret) Reset() {
@@ -311,33 +393,69 @@ func (x *Secret) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Secret.ProtoReflect.Descriptor instead.
-func (*Secret) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{3}
-}
-
 func (x *Secret) GetInfo() *SecretInfo {
 	if x != nil {
-		return x.Info
+		return x.xxx_hidden_Info
 	}
 	return nil
 }
 
 func (x *Secret) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
 
+func (x *Secret) SetInfo(v *SecretInfo) {
+	x.xxx_hidden_Info = v
+}
+
+func (x *Secret) SetData(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Data = v
+}
+
+func (x *Secret) HasInfo() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Info != nil
+}
+
+func (x *Secret) ClearInfo() {
+	x.xxx_hidden_Info = nil
+}
+
+type Secret_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Info *SecretInfo
+	Data []byte
+}
+
+func (b0 Secret_builder) Build() *Secret {
+	m0 := &Secret{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Info = b.Info
+	x.xxx_hidden_Data = b.Data
+	return m0
+}
+
+// CreateSecretRequest carries an ID chosen by the client, so a retried
+// Create can't make a duplicate: the second one fails with ALREADY_EXISTS.
 type CreateSecretRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          SecretType             `protobuf:"varint,1,opt,name=type,proto3,enum=gophkeeper.SecretType" json:"type,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Type     SecretType             `protobuf:"varint,1,opt,name=type,enum=gophkeeper.SecretType"`
+	xxx_hidden_Name     string                 `protobuf:"bytes,2,opt,name=name"`
+	xxx_hidden_Metadata map[string]string      `protobuf:"bytes,3,rep,name=metadata" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Data     []byte                 `protobuf:"bytes,4,opt,name=data"`
+	xxx_hidden_Id       string                 `protobuf:"bytes,5,opt,name=id"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateSecretRequest) Reset() {
@@ -365,49 +483,97 @@ func (x *CreateSecretRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateSecretRequest.ProtoReflect.Descriptor instead.
-func (*CreateSecretRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{4}
-}
-
 func (x *CreateSecretRequest) GetType() SecretType {
 	if x != nil {
-		return x.Type
+		return x.xxx_hidden_Type
 	}
 	return SecretType_SECRET_TYPE_UNSPECIFIED
 }
 
 func (x *CreateSecretRequest) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *CreateSecretRequest) GetMetadata() map[string]string {
 	if x != nil {
-		return x.Metadata
+		return x.xxx_hidden_Metadata
 	}
 	return nil
 }
 
 func (x *CreateSecretRequest) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
 
+func (x *CreateSecretRequest) GetId() string {
+	if x != nil {
+		return x.xxx_hidden_Id
+	}
+	return ""
+}
+
+func (x *CreateSecretRequest) SetType(v SecretType) {
+	x.xxx_hidden_Type = v
+}
+
+func (x *CreateSecretRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+func (x *CreateSecretRequest) SetMetadata(v map[string]string) {
+	x.xxx_hidden_Metadata = v
+}
+
+func (x *CreateSecretRequest) SetData(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Data = v
+}
+
+func (x *CreateSecretRequest) SetId(v string) {
+	x.xxx_hidden_Id = v
+}
+
+type CreateSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Type     SecretType
+	Name     string
+	Metadata map[string]string
+	Data     []byte
+	// UUID of the new secret.
+	Id string
+}
+
+func (b0 CreateSecretRequest_builder) Build() *CreateSecretRequest {
+	m0 := &CreateSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Type = b.Type
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Metadata = b.Metadata
+	x.xxx_hidden_Data = b.Data
+	x.xxx_hidden_Id = b.Id
+	return m0
+}
+
 // UpdateSecretRequest replaces name, metadata and data. The type can't change.
 type UpdateSecretRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id       string                 `protobuf:"bytes,1,opt,name=id"`
+	xxx_hidden_Version  int64                  `protobuf:"varint,2,opt,name=version"`
+	xxx_hidden_Name     string                 `protobuf:"bytes,3,opt,name=name"`
+	xxx_hidden_Metadata map[string]string      `protobuf:"bytes,4,rep,name=metadata" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Data     []byte                 `protobuf:"bytes,5,opt,name=data"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateSecretRequest) Reset() {
@@ -435,49 +601,89 @@ func (x *UpdateSecretRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateSecretRequest.ProtoReflect.Descriptor instead.
-func (*UpdateSecretRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{5}
-}
-
 func (x *UpdateSecretRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
 func (x *UpdateSecretRequest) GetVersion() int64 {
 	if x != nil {
-		return x.Version
+		return x.xxx_hidden_Version
 	}
 	return 0
 }
 
 func (x *UpdateSecretRequest) GetName() string {
 	if x != nil {
-		return x.Name
+		return x.xxx_hidden_Name
 	}
 	return ""
 }
 
 func (x *UpdateSecretRequest) GetMetadata() map[string]string {
 	if x != nil {
-		return x.Metadata
+		return x.xxx_hidden_Metadata
 	}
 	return nil
 }
 
 func (x *UpdateSecretRequest) GetData() []byte {
 	if x != nil {
-		return x.Data
+		return x.xxx_hidden_Data
 	}
 	return nil
 }
 
+func (x *UpdateSecretRequest) SetId(v string) {
+	x.xxx_hidden_Id = v
+}
+
+func (x *UpdateSecretRequest) SetVersion(v int64) {
+	x.xxx_hidden_Version = v
+}
+
+func (x *UpdateSecretRequest) SetName(v string) {
+	x.xxx_hidden_Name = v
+}
+
+func (x *UpdateSecretRequest) SetMetadata(v map[string]string) {
+	x.xxx_hidden_Metadata = v
+}
+
+func (x *UpdateSecretRequest) SetData(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Data = v
+}
+
+type UpdateSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Id       string
+	Version  int64
+	Name     string
+	Metadata map[string]string
+	Data     []byte
+}
+
+func (b0 UpdateSecretRequest_builder) Build() *UpdateSecretRequest {
+	m0 := &UpdateSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Id = b.Id
+	x.xxx_hidden_Version = b.Version
+	x.xxx_hidden_Name = b.Name
+	x.xxx_hidden_Metadata = b.Metadata
+	x.xxx_hidden_Data = b.Data
+	return m0
+}
+
 type DeleteSecretRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id string                 `protobuf:"bytes,1,opt,name=id"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,21 +713,34 @@ func (x *DeleteSecretRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteSecretRequest.ProtoReflect.Descriptor instead.
-func (*DeleteSecretRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{6}
-}
-
 func (x *DeleteSecretRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
+func (x *DeleteSecretRequest) SetId(v string) {
+	x.xxx_hidden_Id = v
+}
+
+type DeleteSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Id string
+}
+
+func (b0 DeleteSecretRequest_builder) Build() *DeleteSecretRequest {
+	m0 := &DeleteSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Id = b.Id
+	return m0
+}
+
 type GetSecretRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Id string                 `protobuf:"bytes,1,opt,name=id"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -551,23 +770,36 @@ func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSecretRequest.ProtoReflect.Descriptor instead.
-func (*GetSecretRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{7}
-}
-
 func (x *GetSecretRequest) GetId() string {
 	if x != nil {
-		return x.Id
+		return x.xxx_hidden_Id
 	}
 	return ""
 }
 
+func (x *GetSecretRequest) SetId(v string) {
+	x.xxx_hidden_Id = v
+}
+
+type GetSecretRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Id string
+}
+
+func (b0 GetSecretRequest_builder) Build() *GetSecretRequest {
+	m0 := &GetSecretRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Id = b.Id
+	return m0
+}
+
 type SyncRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SinceRevision int64                  `protobuf:"varint,1,opt,name=since_revision,json=sinceRevision,proto3" json:"since_revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_SinceRevision int64                  `protobuf:"varint,1,opt,name=since_revision,json=sinceRevision"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SyncRequest) Reset() {
@@ -595,26 +827,37 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
-func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{8}
-}
-
 func (x *SyncRequest) GetSinceRevision() int64 {
 	if x != nil {
-		return x.SinceRevision
+		return x.xxx_hidden_SinceRevision
 	}
 	return 0
 }
 
+func (x *SyncRequest) SetSinceRevision(v int64) {
+	x.xxx_hidden_SinceRevision = v
+}
+
+type SyncRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	SinceRevision int64
+}
+
+func (b0 SyncRequest_builder) Build() *SyncRequest {
+	m0 := &SyncRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_SinceRevision = b.SinceRevision
+	return m0
+}
+
 type SyncResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Secrets changed after since_revision, deleted ones included.
-	Changed []*SecretInfo `protobuf:"bytes,1,rep,name=changed,proto3" json:"changed,omitempty"`
-	// The user's current revision; send it as since_revision next time.
-	Revision      int64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Changed  *[]*SecretInfo         `protobuf:"bytes,1,rep,name=changed"`
+	xxx_hidden_Revision int64                  `protobuf:"varint,2,opt,name=revision"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SyncResponse) Reset() {
@@ -642,23 +885,46 @@ func (x *SyncResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
-func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_gophkeeper_proto_rawDescGZIP(), []int{9}
-}
-
 func (x *SyncResponse) GetChanged() []*SecretInfo {
 	if x != nil {
-		return x.Changed
+		if x.xxx_hidden_Changed != nil {
+			return *x.xxx_hidden_Changed
+		}
 	}
 	return nil
 }
 
 func (x *SyncResponse) GetRevision() int64 {
 	if x != nil {
-		return x.Revision
+		return x.xxx_hidden_Revision
 	}
 	return 0
+}
+
+func (x *SyncResponse) SetChanged(v []*SecretInfo) {
+	x.xxx_hidden_Changed = &v
+}
+
+func (x *SyncResponse) SetRevision(v int64) {
+	x.xxx_hidden_Revision = v
+}
+
+type SyncResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Secrets changed after since_revision, deleted ones included.
+	Changed []*SecretInfo
+	// The user's current revision; send it as since_revision next time.
+	Revision int64
+}
+
+func (b0 SyncResponse_builder) Build() *SyncResponse {
+	m0 := &SyncResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Changed = &b.Changed
+	x.xxx_hidden_Revision = b.Revision
+	return m0
 }
 
 var File_api_proto_gophkeeper_proto protoreflect.FileDescriptor
@@ -666,7 +932,7 @@ var File_api_proto_gophkeeper_proto protoreflect.FileDescriptor
 const file_api_proto_gophkeeper_proto_rawDesc = "" +
 	"\n" +
 	"\x1aapi/proto/gophkeeper.proto\x12\n" +
-	"gophkeeper\"?\n" +
+	"gophkeeper\x1a!google/protobuf/go_features.proto\"?\n" +
 	"\vCredentials\x12\x14\n" +
 	"\x05login\x18\x01 \x01(\tR\x05login\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"$\n" +
@@ -687,12 +953,13 @@ const file_api_proto_gophkeeper_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
 	"\x06Secret\x12*\n" +
 	"\x04info\x18\x01 \x01(\v2\x16.gophkeeper.SecretInfoR\x04info\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"\xf1\x01\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\x81\x02\n" +
 	"\x13CreateSecretRequest\x12*\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x16.gophkeeper.SecretTypeR\x04type\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12I\n" +
 	"\bmetadata\x18\x03 \x03(\v2-.gophkeeper.CreateSecretRequest.MetadataEntryR\bmetadata\x12\x12\n" +
-	"\x04data\x18\x04 \x01(\fR\x04data\x1a;\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\x12\x0e\n" +
+	"\x02id\x18\x05 \x01(\tR\x02id\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xef\x01\n" +
@@ -729,19 +996,7 @@ const file_api_proto_gophkeeper_proto_rawDesc = "" +
 	"\x06Update\x12\x1f.gophkeeper.UpdateSecretRequest\x1a\x16.gophkeeper.SecretInfo\x12A\n" +
 	"\x06Delete\x12\x1f.gophkeeper.DeleteSecretRequest\x1a\x16.gophkeeper.SecretInfo\x127\n" +
 	"\x03Get\x12\x1c.gophkeeper.GetSecretRequest\x1a\x12.gophkeeper.Secret\x129\n" +
-	"\x04Sync\x12\x17.gophkeeper.SyncRequest\x1a\x18.gophkeeper.SyncResponseBBZ@github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpbb\x06proto3"
-
-var (
-	file_api_proto_gophkeeper_proto_rawDescOnce sync.Once
-	file_api_proto_gophkeeper_proto_rawDescData []byte
-)
-
-func file_api_proto_gophkeeper_proto_rawDescGZIP() []byte {
-	file_api_proto_gophkeeper_proto_rawDescOnce.Do(func() {
-		file_api_proto_gophkeeper_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_gophkeeper_proto_rawDesc), len(file_api_proto_gophkeeper_proto_rawDesc)))
-	})
-	return file_api_proto_gophkeeper_proto_rawDescData
-}
+	"\x04Sync\x12\x17.gophkeeper.SyncRequest\x1a\x18.gophkeeper.SyncResponseBLZ@github.com/dmitrymack/go-password-manager/api/proto;gophkeeperpb\x92\x03\a\xd2>\x02\x10\x03\b\x02b\beditionsp\xe8\a"
 
 var file_api_proto_gophkeeper_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_api_proto_gophkeeper_proto_msgTypes = make([]protoimpl.MessageInfo, 13)

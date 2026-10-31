@@ -1,0 +1,7 @@
+ALTER TABLE users
+    ALTER COLUMN login TYPE VARCHAR(64),
+    ALTER COLUMN password_hash TYPE VARCHAR(60);
+
+ALTER TABLE secrets
+    ALTER COLUMN name TYPE VARCHAR(255),
+    ADD CONSTRAINT secrets_type_check CHECK (type BETWEEN 1 AND 4);

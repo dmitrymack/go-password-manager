@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -32,11 +31,23 @@ var (
 // maxMessageSize fits the largest secret (10 MB) plus overhead.
 const maxMessageSize = 11 << 20
 
+// retryCreate makes gRPC resend Create if the server was unreachable.
+// Safe: the request carries the secret's ID, so a repeat can't duplicate it.
+const retryCreate = `{"methodConfig": [{
+	"name": [{"service": "gophkeeper.SecretService", "method": "Create"}],
+	"retryPolicy": {
+		"maxAttempts": 3,
+		"initialBackoff": "0.5s",
+		"maxBackoff": "2s",
+		"backoffMultiplier": 2,
+		"retryableStatusCodes": ["UNAVAILABLE"]
+	}
+}]}`
+
 // Options configure the connection.
 type Options struct {
 	Address    string // host:port of the server
 	CACertFile string // CA to verify the server with; empty means system CAs
-	Plaintext  bool   // no TLS at all; for local development only
 	Token      string // sent with secret calls; empty for register/login
 }
 
@@ -58,6 +69,7 @@ func Dial(opts Options) (*Client, error) {
 
 	conn, err := grpc.NewClient(opts.Address,
 		grpc.WithTransportCredentials(creds),
+		grpc.WithDefaultServiceConfig(retryCreate),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(maxMessageSize),
 			grpc.MaxCallSendMsgSize(maxMessageSize),
@@ -75,13 +87,8 @@ func Dial(opts Options) (*Client, error) {
 	}, nil
 }
 
-// transportCredentials picks plaintext, TLS with a custom CA, or TLS with
-// the system CAs.
+// transportCredentials sets up TLS with a custom CA or the system CAs.
 func transportCredentials(opts Options) (credentials.TransportCredentials, error) {
-	if opts.Plaintext {
-		return insecure.NewCredentials(), nil
-	}
-
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if opts.CACertFile != "" {
 		pem, err := os.ReadFile(opts.CACertFile)
@@ -104,7 +111,7 @@ func (c *Client) Close() error {
 
 // Register creates a user and returns their token.
 func (c *Client) Register(ctx context.Context, login, password string) (string, error) {
-	resp, err := c.auth.Register(ctx, &pb.Credentials{Login: login, Password: password})
+	resp, err := c.auth.Register(ctx, credentialsPB(login, password))
 	if err != nil {
 		return "", convertError(err)
 	}
@@ -113,7 +120,7 @@ func (c *Client) Register(ctx context.Context, login, password string) (string, 
 
 // Login authenticates and returns a token.
 func (c *Client) Login(ctx context.Context, login, password string) (string, error) {
-	resp, err := c.auth.Login(ctx, &pb.Credentials{Login: login, Password: password})
+	resp, err := c.auth.Login(ctx, credentialsPB(login, password))
 	if err != nil {
 		return "", convertError(err)
 	}
@@ -122,7 +129,7 @@ func (c *Client) Login(ctx context.Context, login, password string) (string, err
 
 // Sync returns secrets changed after since and the current revision.
 func (c *Client) Sync(ctx context.Context, since int64) ([]secret.Info, int64, error) {
-	resp, err := c.secrets.Sync(c.withToken(ctx), &pb.SyncRequest{SinceRevision: since})
+	resp, err := c.secrets.Sync(c.withToken(ctx), pb.SyncRequest_builder{SinceRevision: since}.Build())
 	if err != nil {
 		return nil, 0, convertSecretError(err)
 	}
@@ -136,21 +143,26 @@ func (c *Client) Sync(ctx context.Context, since int64) ([]secret.Info, int64, e
 
 // Get returns a secret with its data.
 func (c *Client) Get(ctx context.Context, id string) (secret.Secret, error) {
-	resp, err := c.secrets.Get(c.withToken(ctx), &pb.GetSecretRequest{Id: id})
+	resp, err := c.secrets.Get(c.withToken(ctx), pb.GetSecretRequest_builder{Id: id}.Build())
 	if err != nil {
 		return secret.Secret{}, convertSecretError(err)
 	}
 	return secret.Secret{Info: fromPB(resp.GetInfo()), Data: resp.GetData()}, nil
 }
 
-// Create stores a new secret.
+// Create stores a new secret; s.ID must be a new UUID. If an earlier
+// attempt already stored it (ALREADY_EXISTS), that counts as success.
 func (c *Client) Create(ctx context.Context, s secret.Secret) (secret.Info, error) {
-	resp, err := c.secrets.Create(c.withToken(ctx), &pb.CreateSecretRequest{
+	resp, err := c.secrets.Create(c.withToken(ctx), pb.CreateSecretRequest_builder{
+		Id:       s.ID,
 		Type:     pb.SecretType(s.Type), //nolint:gosec // types are 1-4
 		Name:     s.Name,
 		Metadata: s.Metadata,
 		Data:     s.Data,
-	})
+	}.Build())
+	if status.Code(err) == codes.AlreadyExists {
+		return s.Info, nil
+	}
 	if err != nil {
 		return secret.Info{}, convertSecretError(err)
 	}
@@ -160,13 +172,13 @@ func (c *Client) Create(ctx context.Context, s secret.Secret) (secret.Info, erro
 // Update replaces a secret's name, metadata and data; s.Version must be
 // the version the change is based on.
 func (c *Client) Update(ctx context.Context, s secret.Secret) (secret.Info, error) {
-	resp, err := c.secrets.Update(c.withToken(ctx), &pb.UpdateSecretRequest{
+	resp, err := c.secrets.Update(c.withToken(ctx), pb.UpdateSecretRequest_builder{
 		Id:       s.ID,
 		Version:  s.Version,
 		Name:     s.Name,
 		Metadata: s.Metadata,
 		Data:     s.Data,
-	})
+	}.Build())
 	if err != nil {
 		return secret.Info{}, convertSecretError(err)
 	}
@@ -175,8 +187,13 @@ func (c *Client) Update(ctx context.Context, s secret.Secret) (secret.Info, erro
 
 // Delete deletes a secret.
 func (c *Client) Delete(ctx context.Context, id string) error {
-	_, err := c.secrets.Delete(c.withToken(ctx), &pb.DeleteSecretRequest{Id: id})
+	_, err := c.secrets.Delete(c.withToken(ctx), pb.DeleteSecretRequest_builder{Id: id}.Build())
 	return convertSecretError(err)
+}
+
+// credentialsPB builds the request of Register and Login.
+func credentialsPB(login, password string) *pb.Credentials {
+	return pb.Credentials_builder{Login: login, Password: password}.Build()
 }
 
 // withToken adds the "authorization" header to an outgoing call.

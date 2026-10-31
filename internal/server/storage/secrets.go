@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/dmitrymack/go-password-manager/internal/server/encryption"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ErrVersionConflict means the secret was changed since the client read it.
@@ -94,6 +96,7 @@ func (p *Postgres) ReplaceDEK(ctx context.Context, old encryption.WrappedDEK, wr
 }
 
 // CreateSecret stores a new secret; version, revision and time come from the DB.
+// A taken ID gives ErrAlreadyExists; the revision bump is rolled back with it.
 func (p *Postgres) CreateSecret(ctx context.Context, s Secret) (Secret, error) {
 	if s.Metadata == nil {
 		s.Metadata = map[string]string{}
@@ -113,6 +116,9 @@ func (p *Postgres) CreateSecret(ctx context.Context, s Secret) (Secret, error) {
 			s.Sealed.Ciphertext, s.Sealed.WrappedDEK, s.Sealed.KEKVersion, rev,
 		).Scan(&s.Version, &s.Revision, &s.UpdatedAt)
 	})
+	if isUniqueViolation(err) {
+		return Secret{}, ErrAlreadyExists
+	}
 	if err != nil {
 		return Secret{}, fmt.Errorf("creating secret: %w", err)
 	}
@@ -269,4 +275,10 @@ func notFoundOrConflict(ctx context.Context, tx pgx.Tx, userID, id string) error
 		return ErrVersionConflict
 	}
 	return ErrNotFound
+}
+
+// isUniqueViolation reports whether err is a broken UNIQUE or PRIMARY KEY constraint.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation
 }
